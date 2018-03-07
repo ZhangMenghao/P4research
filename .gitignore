@@ -6,3 +6,5 @@
 #for dot
 *.dot
 *~
+#png
+*.png
