@@ -638,6 +638,12 @@ table forward_table{
 }
 
 control ingress {
+	/* 
+	meta.tcp_session_map_index (and other meta datas) will be correctly set in this stage.
+	Here we use different hash fields for inbound and outbound packets
+	However, tofino forbids modifying a metadata field with multiple hash calculation units in a table.
+	So have to use different tables
+	*/
 	if(ig_intr_md.ingress_port == 128){
 		apply(session_check);
 	}
@@ -645,15 +651,46 @@ control ingress {
 		apply(session_check_reverse);
 	}
 
+	/* 
+	Every packet goes through this stage.
+	SYN packets update the registers, while otherpackets just read.
+	meta.tcp_session_is_SYN is set.	
+	*/
+
+
 	apply(read_state_SYN);
+
+
+	/* 
+	The packets from a connection whose SYN is received goes through this stage.
+	ACK packets update the registers, while otherpackets just read.
+	meta.tcp_session_is_ACK is set.	
+	*/
+
 
 	if(meta.tcp_session_is_SYN == 1) {
 		apply(read_state_ACK);
 	}
 
+	/*
+	The packets from a completed connection enter this stage.
+	They could be payload packets from h1 or SYNACK from h2.
+	The latter update the registers while the former just read.
+	*/
+
 	if(meta.tcp_session_is_ACK == 1){
 		apply(read_state_h2);
 	}
+
+	/*
+	The next stage decides the packets' fate based on the metadatas obtained in previous stages.
+	For h1SYN, send h1SYNACK
+	For h2ACK, send h2SYN
+	For h2SYNACK, send h2ACK
+	For payloads, do Seq/Ack transformation.
+	meta.reply_type is set.
+
+	*/
 
 	if (meta.tcp_syn == 1 and meta.tcp_ack == 0)
 	{
@@ -679,7 +716,8 @@ control ingress {
 		apply(forward_normal_table);
 	}
 
-	apply(forward_table);
+	/* Based on meta.reply_type, do modfications and forward*/
+	//apply(forward_table);	
 
 }
 control egress {

@@ -6,7 +6,8 @@
 cd $SDE/pkgsrc/p4-build-4.1.1.15
 make clean
 echo 'clean done!'
-./configure --prefix=$SDE_INSTALL --with-tofino enable_thrift=yes P4_PATH=$SDE/synproxy/syntry.p4 P4_NAME=synproxy
+./configure --prefix=$SDE_INSTALL --with-tofino enable_thrift=yes P4_PATH=$SDE/synproxy/p4research/DoS/tofino/syntry.p4 P4_NAME=synproxy
+
 make
 echo 'make done!'
 make install
