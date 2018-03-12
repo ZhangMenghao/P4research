@@ -69,7 +69,7 @@ field_list_calculation ipv4_checksum {
 }
 
 calculated_field ipv4.hdrChecksum  {
-	//verify ipv4_checksum;
+	verify ipv4_checksum;
 	update ipv4_checksum;
 }
 
@@ -160,8 +160,6 @@ field_list_calculation tcp_checksum {
 
 calculated_field tcp.checksum {
 	//TOFINO: We cannot add if here on tofino.
-    	//verify tcp_checksum if(valid(tcp));
-    	//update tcp_checksum if(valid(tcp));
 	update tcp_checksum;
 }
 
@@ -429,32 +427,21 @@ action write_state_h2_action(){
 	write_h2_seq.execute_stateful_alu(meta.tcp_session_map_index);
 }
 
-//**************************for session_init_table*******************
-action init_session()
-{
-	modify_field(meta.reply_type,1);//1 means forward_table should return a SA to h1i
-}
 
 table session_init_table {
 	actions { 
-	//init_session; 
-	sendback_sa;
-}
-	
+		sendback_sa;
+	}
 }
 
 
-//*******************for session_complete_table**********************
-
-action complete_session()
-{
-	modify_field(meta.reply_type,2);// 2 means forward_table should send a syn to h2
-}
 table session_complete_table {
-	actions { complete_session;}
+	actions { 
+		sendh2syn;
+	}
 }
 
-//*******************************for handle_resubmit_table*
+
 action set_resubmit()
 {
 	modify_field(meta.reply_type, 4);//4 means just resubmit it 
@@ -465,19 +452,13 @@ table handle_resubmit_table{
 	{
 		set_resubmit;
 	}
-
 }
 
-//  ********************************for relay_session_table
-//
-action relay_session()
-{
-	modify_field(meta.reply_type,3);//not to drop  we should return a ack to h2 (don't forget to swap the ip and macs 
-}
+
 table relay_session_table
 {
 	actions{
-		relay_session;
+		sendh2ack;
 	}	
 
 }
@@ -605,18 +586,18 @@ action sendh2ack()
 	modify_field(ethernet.dstAddr, meta.eth_sa);
 	modify_field(ethernet.srcAddr, meta.eth_da);
 		
-	modify_field(standard_metadata.egress_spec, meta.in_port);
+	modify_field(ig_intr_md_for_tm.ucast_egress_port, meta.in_port);
 
 }
-action sendh2syn(port)
+
+action sendh2syn()
 {
 	modify_field(tcp.syn,1);
 	modify_field(tcp.ack,0);
-	//modify_field(tcp.seqNo, meta.tcp_seqNo_minus1);
 	add(tcp.seqNo,meta.tcp_seqNo,-1);
 	modify_field(tcp.ackNo,0);
 	
-	modify_field(standard_metadata.egress_spec,port);
+	modify_field(ig_intr_md_for_tm.ucast_egress_port, meta.in_port);
 }
 
 //00 noreply  01 syn/ack back to h1  02 syn to h2  03 undifined  04 resubmit 05forward the packet 
@@ -644,7 +625,6 @@ control ingress {
 	else {
 		apply(session_check_reverse);
 	}
-
 	apply(read_state_SYN);
 
 	if(meta.tcp_session_is_SYN == 1) {
@@ -654,12 +634,11 @@ control ingress {
 	if(meta.tcp_session_is_ACK == 1){
 		apply(read_state_h2);
 	}
-
 	if (meta.tcp_syn == 1 and meta.tcp_ack == 0)
 	{
 		apply(session_init_table);
 	}
-	else if (meta.tcp_syn == 0 and meta.tcp_ack == 1)
+	else if (meta.tcp_syn == 0 and meta.tcp_ack == 1 and meta.tcp_session_is_SYN == 1)
 	{
 		apply(session_complete_table);
 	}
@@ -679,7 +658,7 @@ control ingress {
 		apply(forward_normal_table);
 	}
 
-	apply(forward_table);
+	//apply(forward_table);
 
 }
 control egress {

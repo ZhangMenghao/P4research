@@ -72,6 +72,10 @@ class SYNProxyTest(pd_base_tests.ThriftInterfaceDataPlane):
 	self.pltfm_pm.pltfm_pm_port_enable(dev,egress_port)
 
 	self.client.session_init_table_set_default_action_sendback_sa(self.sess_hdl,self.dev_tgt);
+	self.client.session_complete_table_set_default_action_sendh2syn(self.sess_hdl,self.dev_tgt);
+
+	self.client.session_check_set_default_action_lookup_session_map(self.sess_hdl,self.dev_tgt);
+	self.client.session_check_reverse_set_default_action_lookup_session_map_reverse(self.sess_hdl,self.dev_tgt);
 
         self.conn_mgr.complete_operations(self.sess_hdl)
 	while(True):
