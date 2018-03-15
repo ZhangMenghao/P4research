@@ -45,6 +45,11 @@ parser parse_ethernet {
 	}
 }
 
+@pragma pa_fragment ingress ipv4.hdrChecksum
+@pragma pa_fragment egress ipv4.hdrChecksum
+@pragma pa_fragment ingress ipv4.protocol
+@pragma pa_fragment egress ipv4.protocol
+
 header ipv4_t ipv4;
 
 field_list ipv4_checksum_list {
@@ -77,7 +82,8 @@ calculated_field ipv4.hdrChecksum  {
 
 parser parse_ipv4 {
 	extract(ipv4);
-	
+	set_metadata(meta.ipv4_sa, ipv4.srcAddr);
+	set_metadata(meta.ipv4_da, ipv4.dstAddr);	
 	//TOFINO: We cannot do calculations in parser
 	//set_metadata(meta.tcpLength, ipv4.totalLen - 20);	
 	return select(ipv4.protocol) {
@@ -102,31 +108,32 @@ header_type tcp_t {
     }
 }
 
-//@pragma pa_fragment egress tcp.checksum
-//@pragma pa_fragment egress tcp.urgentPtr
+@pragma pa_fragment egress tcp.checksum
+@pragma pa_fragment ingress tcp.checksum
+@pragma pa_fragment egress tcp.urgentPtr
+@pragma pa_fragment ingress tcp.urgentPtr
 header tcp_t tcp;
 
 parser parse_tcp {
 	extract(tcp);
+	set_metadata(meta.tcp_sp, tcp.srcPort);
+	set_metadata(meta.tcp_dp, tcp.dstPort);
 /*
-	//set_metadata(meta.tcp_sp, tcp.srcPort);
-	//set_metadata(meta.tcp_dp, tcp.dstPort);
 	set_metadata(meta.tcp_ack, tcp.ack);
 	set_metadata(meta.tcp_psh, tcp.psh);
 	set_metadata(meta.tcp_rst, tcp.rst);
 	set_metadata(meta.tcp_syn, tcp.syn);
 	set_metadata(meta.tcp_fin, tcp.fin);	
-	set_metadata(meta.tcp_seqNo, tcp.seqNo);
-	//set_metadata(meta.tcp_seqNo_plus1, tcp.seqNo+1);
-	//set_metadata(meta.tcp_seqNo_minus1, tcp.seqNo-1);
-	set_metadata(meta.tcp_ackNo, tcp.ackNo);	
 */
+	set_metadata(meta.tcp_seqNo, tcp.seqNo);
+	set_metadata(meta.tcp_ackNo, tcp.ackNo);	
 	return ingress;
 }
+/*
 field_list tcp_checksum_list {
     ipv4.srcAddr;
     ipv4.dstAddr;
-    ipv4.diffserv;
+    8'0;
     ipv4.protocol;
     tcp.srcPort;
     tcp.dstPort;
@@ -137,7 +144,7 @@ field_list tcp_checksum_list {
     tcp.flags;
     tcp.window;
     tcp.urgentPtr;
-    //payload;
+    payload;
 }
 
 field_list_calculation tcp_checksum {
@@ -152,12 +159,21 @@ calculated_field tcp.checksum {
 	//TOFINO: We cannot add if here on tofino.
 	update tcp_checksum;
 }
-			
+*/			
 header_type meta_t {
 	fields {
 		tcpLength : 16;
 		eth_da:48;
 		eth_sa:48;
+		ipv4_sa : 32;
+
+		ipv4_da : 32;
+
+		tcp_sp : 16;
+
+		tcp_dp : 16;
+		tcp_seqNo:32;
+		tcp_ackNo:32;
 		zeros:8;	
 	}
 
@@ -232,21 +248,20 @@ table session_init_table {
 action sendback_sa()
 {
 	//subtract(meta.tcpLength,20);
-	modify_field(meta.tcpLength,1);
+	modify_field(meta.tcpLength,0);
 	modify_field(meta.zeros,0);
+	modify_field(tcp.flags,0x12);
+	add_to_field(tcp.checksum,-0x11);
 /*
 	modify_field(tcp.syn,1);
 	modify_field(tcp.ack,1);
+*/
 	modify_field(tcp.seqNo,0x0) ;
-	
-	//modify_field(tcp.ackNo,meta.tcp_seqNo_plus1);
 	add(tcp.ackNo,meta.tcp_seqNo,1);
-	//add_to_field(tcp.ackNo,1);
 	modify_field(ipv4.dstAddr, meta.ipv4_sa);
 	modify_field(ipv4.srcAddr, meta.ipv4_da);
 	modify_field(tcp.srcPort, meta.tcp_dp);
 	modify_field(tcp.dstPort, meta.tcp_sp);
-*/
 	modify_field(ethernet.dstAddr, meta.eth_sa);
 	modify_field(ethernet.srcAddr, meta.eth_da);
 		

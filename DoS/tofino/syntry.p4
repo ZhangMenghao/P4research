@@ -157,12 +157,12 @@ field_list_calculation tcp_checksum {
     algorithm : csum16;
     output_width : 16;
 }
-
+/*
 calculated_field tcp.checksum {
 	//TOFINO: We cannot add if here on tofino.
 	update tcp_checksum;
 }
-
+*/
 			
 header_type meta_t {
 	fields {
@@ -540,7 +540,7 @@ action sendback_sa()
 	modify_field(tcp.syn,1);
 	modify_field(tcp.ack,1);
 	modify_field(tcp.seqNo,0x0) ;
-	
+	add_to_field(tcp.checksum,-16);	
 	//modify_field(tcp.ackNo,meta.tcp_seqNo_plus1);
 	add(tcp.ackNo,meta.tcp_seqNo,1);
 	//add_to_field(tcp.ackNo,1);
