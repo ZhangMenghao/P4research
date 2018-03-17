@@ -114,8 +114,8 @@ header tcp_t tcp;
 
 parser parse_tcp {
 	extract(tcp);
-	//set_metadata(meta.tcp_sp, tcp.srcPort);
-	//set_metadata(meta.tcp_dp, tcp.dstPort);
+	set_metadata(meta.tcp_sp, tcp.srcPort);
+	set_metadata(meta.tcp_dp, tcp.dstPort);
 	set_metadata(meta.tcp_ack, tcp.ack);
 	set_metadata(meta.tcp_psh, tcp.psh);
 	set_metadata(meta.tcp_rst, tcp.rst);
@@ -204,9 +204,10 @@ header_type meta_t {
 		dstip_pktcount:32;// how many packets have been sent to this dst IP address	 
 	
 
-		tcp_session_is_SYN: 1;// this session has sent a syn to switch
-		tcp_session_is_ACK: 1;// this session has sent a ack to switchi
-		tcp_session_h2_reply_sa:1;// h2 in this session has sent a sa to switch
+		tcp_session_is_SYN: 8;// this session has sent a syn to switch
+		tcp_session_is_ACK: 8;// this session has sent a ack to switchi
+		tcp_session_h2_reply_sa:8;// h2 in this session has sent a sa to switch
+		h1_seq : 32;
 		
 	}
 
@@ -280,24 +281,26 @@ field_list resubmit_FL {
 register tcp_session_is_SYN {
 	//TOFINO: Width cannot be 1 or condition_lo will not be supported
 	width : 8;
-	instance_count: 8192;
+	instance_count: 256;
 }
 
 blackbox stateful_alu read_tcp_session_is_SYN{
 	//TOFINO: if syn = 1,write and read;else just read
+
         reg : tcp_session_is_SYN;
 	condition_lo : tcp.syn == 1;
 	update_lo_1_predicate:condition_lo;
-        update_lo_1_value : 1 ;
+        update_lo_1_value : 1  ;
 	update_lo_2_predicate:not condition_lo;
 	update_lo_2_value : register_lo;
+
         output_value : alu_lo;
         output_dst: meta.tcp_session_is_SYN;
 }
 
 register tcp_session_is_ACK {
 	width : 8;
-	instance_count: 8192;
+	instance_count:256;
 }
 
 blackbox stateful_alu read_tcp_session_is_ACK{
@@ -329,6 +332,7 @@ blackbox stateful_alu write_tcp_session_h2_reply_sa{
         output_dst: meta.tcp_session_h2_reply_sa;
 }
 */
+
 register h1_seq{
 	width : 32;
 	instance_count: 8192;
@@ -540,7 +544,8 @@ action sendback_sa()
 	modify_field(tcp.syn,1);
 	modify_field(tcp.ack,1);
 	modify_field(tcp.seqNo,0x0) ;
-	add_to_field(tcp.checksum,-16);	
+	add_to_field(tcp.checksum,-0x11);	
+
 	//modify_field(tcp.ackNo,meta.tcp_seqNo_plus1);
 	add(tcp.ackNo,meta.tcp_seqNo,1);
 	//add_to_field(tcp.ackNo,1);
@@ -576,6 +581,7 @@ action sendh2ack()
 	modify_field(tcp.ack,1);
 //	add_to_field(meta.tcp_seqNo,1);
 //	modify_field(tcp.ackNo, meta.tcp_seqNo_plus1);
+
 	add(tcp.ackNo,meta.tcp_seqNo,1);
 
 	modify_field(tcp.seqNo,meta.tcp_ackNo) ;
@@ -596,8 +602,13 @@ action sendh2syn()
 	modify_field(tcp.ack,0);
 	add(tcp.seqNo,meta.tcp_seqNo,-1);
 	modify_field(tcp.ackNo,0);
+	//for testing
+	modify_field(ipv4.identification,meta.reverse_tcp_session_map_index);
+	modify_field(ipv4.diffserv,meta.tcp_session_is_SYN);
+
+	add_to_field(tcp.checksum,0x10);
 	
-	modify_field(ig_intr_md_for_tm.ucast_egress_port, meta.in_port);
+	modify_field(ig_intr_md_for_tm.ucast_egress_port, 136);
 }
 
 //00 noreply  01 syn/ack back to h1  02 syn to h2  03 undifined  04 resubmit 05forward the packet 
@@ -625,6 +636,7 @@ control ingress {
 	else {
 		apply(session_check_reverse);
 	}
+
 	apply(read_state_SYN);
 
 	if(meta.tcp_session_is_SYN == 1) {
@@ -634,6 +646,9 @@ control ingress {
 	if(meta.tcp_session_is_ACK == 1){
 		apply(read_state_h2);
 	}
+
+
+
 	if (meta.tcp_syn == 1 and meta.tcp_ack == 0)
 	{
 		apply(session_init_table);
