@@ -1,4 +1,8 @@
 # DoS SYN proxy demo 
-In progress...;
 
-The first compilable version, just run ./qy_build.sh. However, you need to change the .p4 path in the script
+./qy_build.sh compile script
+
+syntry.p4 the major version
+syntry3.p4 simplified version, for testing
+
+test.py controller, initializing and installing table entries
