@@ -128,8 +128,8 @@ parser parse_tcp {
 field_list tcp_checksum_list {
         ipv4.srcAddr;
         ipv4.dstAddr;
-        8'0;
-        ipv4.protocol;
+        //8'0;
+        //ipv4.protocol;
         meta.tcpLength;
         tcp.srcPort;
         tcp.dstPort;
@@ -155,12 +155,10 @@ field_list_calculation tcp_checksum {
     algorithm : csum16;
     output_width : 16;
 }
-/*
 calculated_field tcp.checksum {
 	//TOFINO: We cannot add if here on tofino.
 	update tcp_checksum;
 }
-*/
 			
 header_type meta_t {
 	fields {
@@ -187,10 +185,8 @@ header_type meta_t {
 		tcp_fin:1;
 		tcp_seqNo:32;
 		tcp_h1seq:32;
-		tcp_seqOffset:32;
 		tcp_ackNo:32;
 		tcp_h2seq:32;
-		tcp_ackOffset:32;
 		
 		tcp_session_map_index :  8;
 		reverse_tcp_session_map_index :  8;
@@ -433,6 +429,12 @@ action read_seq_action(){
 table read_seq{
 	actions {read_seq_action;}
 }
+action read_seq_action_reverse(){
+	read_h2_seq.execute_stateful_alu(meta.reverse_tcp_session_map_index);
+}
+table read_seq_reverse{
+	actions {read_seq_action_reverse;}
+}
 action write_seq_action(){
 	write_h2_seq.execute_stateful_alu(meta.reverse_tcp_session_map_index);
 }
@@ -483,6 +485,7 @@ action inbound_transformation()
 	add_to_field(tcp.ackNo,meta.tcp_h2seq);
 
 	//subtract_from_field(tcp.checksum,meta.tcp_h2seq);
+	
 
 	modify_field(ipv4.diffserv,meta.tcp_session_map_index);
 	modify_field(ipv4.identification,meta.reverse_tcp_session_map_index);
@@ -499,7 +502,6 @@ table inbound_tran_table2
 
 action inbound_transformation2()
 {
-	subtract_from_field(tcp.checksum,tcp.ackNo);
 }
 
 table inbound_tran_table
@@ -510,11 +512,7 @@ table inbound_tran_table
 }
 action outbound_transformation()
 {
-	//add_to_field(tcp.ackNo,meta.tcp_h2seq);
-	add_to_field(tcp.ackNo,1234);
-	//subtract_from_field(tcp.checksum,meta.tcp_h2seq);
-        modify_field(ipv4.ttl,16);
-
+	subtract_from_field(tcp.seqNo,meta.tcp_h2seq);
 	modify_field(ig_intr_md_for_tm.ucast_egress_port, 128);
 }
 
@@ -682,15 +680,18 @@ control ingress {
 	if(meta.tcp_syn == 1 and meta.tcp_ack == 1){
 		apply(write_seq);
 	}
-	else{
+	else if (meta.in_port == 128){
 		apply(read_seq);
+	}
+	else if (meta.in_port == 136){
+		apply(read_seq_reverse);
 	}
 
 	if (meta.tcp_syn == 1 and meta.tcp_ack == 0)
 	{
 		apply(session_init_table);
 	}
-	else if (meta.tcp_syn == 0 and meta.tcp_ack == 1 and meta.tcp_psh == 0/* and meta.tcp_session_is_SYN == 1*/)
+	else if (meta.tcp_syn == 0 and meta.tcp_ack == 1 and meta.tcp_h2seq == 0/* and meta.tcp_session_is_SYN == 1*/)
 	{
 		apply(session_complete_table);
 	}
@@ -699,7 +700,7 @@ control ingress {
 		apply(relay_session_table); 
 	}
 
-	if(meta.tcp_psh == 1){
+	else{
 		if (meta.in_port == 136 )
 		{
 			apply(outbound_tran_table);
@@ -707,7 +708,7 @@ control ingress {
 		else if	(meta.in_port == 128)
 		{
 			apply(inbound_tran_table);
-			apply(inbound_tran_table2);
+			//apply(inbound_tran_table2);
 		}
 	}
 

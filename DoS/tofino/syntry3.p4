@@ -129,12 +129,11 @@ parser parse_tcp {
 	set_metadata(meta.tcp_ackNo, tcp.ackNo);	
 	return ingress;
 }
-/*
 field_list tcp_checksum_list {
     ipv4.srcAddr;
     ipv4.dstAddr;
-    8'0;
-    ipv4.protocol;
+    //8'0;
+    //ipv4.protocol;
     tcp.srcPort;
     tcp.dstPort;
     tcp.seqNo;
@@ -159,7 +158,6 @@ calculated_field tcp.checksum {
 	//TOFINO: We cannot add if here on tofino.
 	update tcp_checksum;
 }
-*/			
 header_type meta_t {
 	fields {
 		tcpLength : 16;
@@ -250,12 +248,10 @@ action sendback_sa()
 	//subtract(meta.tcpLength,20);
 	modify_field(meta.tcpLength,0);
 	modify_field(meta.zeros,0);
+
 	modify_field(tcp.flags,0x12);
-	add_to_field(tcp.checksum,-0x11);
-/*
-	modify_field(tcp.syn,1);
-	modify_field(tcp.ack,1);
-*/
+	//add_to_field(tcp.checksum,-0x11);
+
 	modify_field(tcp.seqNo,0x0) ;
 	add(tcp.ackNo,meta.tcp_seqNo,1);
 	modify_field(ipv4.dstAddr, meta.ipv4_sa);
