@@ -122,8 +122,6 @@ parser parse_tcp {
 	set_metadata(meta.tcp_syn, tcp.syn);
 	set_metadata(meta.tcp_fin, tcp.fin);	
 	set_metadata(meta.tcp_seqNo, tcp.seqNo);
-	//set_metadata(meta.tcp_seqNo_plus1, tcp.seqNo+1);
-	//set_metadata(meta.tcp_seqNo_minus1, tcp.seqNo-1);
 	set_metadata(meta.tcp_ackNo, tcp.ackNo);	
 	return ingress;
 }
@@ -188,8 +186,6 @@ header_type meta_t {
 		tcp_rst:1;
 		tcp_fin:1;
 		tcp_seqNo:32;
-		tcp_seqNo_plus1:32;
-		tcp_seqNo_minus1:32;
 		tcp_h1seq:32;
 		tcp_seqOffset:32;
 		tcp_ackNo:32;
@@ -335,13 +331,13 @@ blackbox stateful_alu write_tcp_session_h2_reply_sa{
 
 register h1_seq{
 	width : 32;
-	instance_count: 8192;
+	instance_count: 256;
 }
 
 //TOFINO: We have to separate read and write, because we cannot refer to more than 3 metadata in a SALU.
 register h2_seq{
 	width : 32;
-	instance_count: 8192;
+	instance_count: 256;
 }
 blackbox stateful_alu read_h2_seq{
 	reg : h2_seq;
@@ -428,8 +424,23 @@ action read_state_h2_action(){
 }
 
 action write_state_h2_action(){
-	write_h2_seq.execute_stateful_alu(meta.tcp_session_map_index);
+	write_h2_seq.execute_stateful_alu(meta.reverse_tcp_session_map_index);
 }
+
+action read_seq_action(){
+	read_h2_seq.execute_stateful_alu(meta.tcp_session_map_index);
+}
+table read_seq{
+	actions {read_seq_action;}
+}
+action write_seq_action(){
+	write_h2_seq.execute_stateful_alu(meta.reverse_tcp_session_map_index);
+}
+table write_seq{
+	actions {write_seq_action;}
+}
+
+
 
 
 table session_init_table {
@@ -469,12 +480,26 @@ table relay_session_table
 
 action inbound_transformation()
 {
-	//subtract(meta.tcp_ackOffset,meta.tcp_ackNo,0);
+	add_to_field(tcp.ackNo,meta.tcp_h2seq);
 
-	add(meta.tcp_ackNo,meta.tcp_ackNo,meta.tcp_h2seq);
-	modify_field(tcp.ackNo,meta.tcp_ackNo);
-        modify_field(ipv4.ttl,32);
+	//subtract_from_field(tcp.checksum,meta.tcp_h2seq);
 
+	modify_field(ipv4.diffserv,meta.tcp_session_map_index);
+	modify_field(ipv4.identification,meta.reverse_tcp_session_map_index);
+
+	modify_field(ig_intr_md_for_tm.ucast_egress_port, 136);
+}
+
+table inbound_tran_table2
+{
+	actions{
+		inbound_transformation2;
+	}
+}
+
+action inbound_transformation2()
+{
+	subtract_from_field(tcp.checksum,tcp.ackNo);
 }
 
 table inbound_tran_table
@@ -483,14 +508,14 @@ table inbound_tran_table
 		inbound_transformation;
 	}
 }
-
 action outbound_transformation()
 {
-       	 subtract(meta.tcp_seqNo,meta.tcp_seqNo,meta.tcp_h2seq);
-      	 //add(meta.tcp_seqNo,meta.tcp_seqOffset,0);
-         modify_field(tcp.seqNo,meta.tcp_seqNo);
-         modify_field(ipv4.ttl,32);
+	//add_to_field(tcp.ackNo,meta.tcp_h2seq);
+	add_to_field(tcp.ackNo,1234);
+	//subtract_from_field(tcp.checksum,meta.tcp_h2seq);
+        modify_field(ipv4.ttl,16);
 
+	modify_field(ig_intr_md_for_tm.ucast_egress_port, 128);
 }
 
 table outbound_tran_table
@@ -546,7 +571,6 @@ action sendback_sa()
 	modify_field(tcp.seqNo,0x0) ;
 	add_to_field(tcp.checksum,-0x11);	
 
-	//modify_field(tcp.ackNo,meta.tcp_seqNo_plus1);
 	add(tcp.ackNo,meta.tcp_seqNo,1);
 	//add_to_field(tcp.ackNo,1);
 	modify_field(ipv4.dstAddr, meta.ipv4_sa);
@@ -579,12 +603,16 @@ action sendh2ack()
 {
 	modify_field(tcp.syn,0);
 	modify_field(tcp.ack,1);
-//	add_to_field(meta.tcp_seqNo,1);
-//	modify_field(tcp.ackNo, meta.tcp_seqNo_plus1);
 
-	add(tcp.ackNo,meta.tcp_seqNo,1);
+	add(tcp.ackNo,meta.tcp_h2seq,1);
+	modify_field(ipv4.diffserv,meta.tcp_session_map_index);
+	modify_field(ipv4.identification,meta.reverse_tcp_session_map_index);
+	
+	add_to_field(tcp.checksum,1);
 
 	modify_field(tcp.seqNo,meta.tcp_ackNo) ;
+	
+
 	modify_field(ipv4.dstAddr, meta.ipv4_sa);
 	modify_field(ipv4.srcAddr, meta.ipv4_da);
 	modify_field(tcp.srcPort, meta.tcp_dp);
@@ -592,19 +620,23 @@ action sendh2ack()
 	modify_field(ethernet.dstAddr, meta.eth_sa);
 	modify_field(ethernet.srcAddr, meta.eth_da);
 		
-	modify_field(ig_intr_md_for_tm.ucast_egress_port, meta.in_port);
+
+	modify_field(ig_intr_md_for_tm.ucast_egress_port, 136);
 
 }
 
 action sendh2syn()
 {
+	//flags changing from 0x10 to 0x2, that is 0xe
 	modify_field(tcp.syn,1);
 	modify_field(tcp.ack,0);
 	add(tcp.seqNo,meta.tcp_seqNo,-1);
 	modify_field(tcp.ackNo,0);
+	//seq and ack both -0x1
+
 	//for testing
 	modify_field(ipv4.identification,meta.reverse_tcp_session_map_index);
-	modify_field(ipv4.diffserv,meta.tcp_session_is_SYN);
+	modify_field(ipv4.diffserv,meta.tcp_session_map_index);
 
 	add_to_field(tcp.checksum,0x10);
 	
@@ -636,44 +668,48 @@ control ingress {
 	else {
 		apply(session_check_reverse);
 	}
-
+/*
 	apply(read_state_SYN);
 
 	if(meta.tcp_session_is_SYN == 1) {
 		apply(read_state_ACK);
 	}
-
 	if(meta.tcp_session_is_ACK == 1){
 		apply(read_state_h2);
 	}
+*/
 
-
+	if(meta.tcp_syn == 1 and meta.tcp_ack == 1){
+		apply(write_seq);
+	}
+	else{
+		apply(read_seq);
+	}
 
 	if (meta.tcp_syn == 1 and meta.tcp_ack == 0)
 	{
 		apply(session_init_table);
 	}
-	else if (meta.tcp_syn == 0 and meta.tcp_ack == 1 and meta.tcp_session_is_SYN == 1)
+	else if (meta.tcp_syn == 0 and meta.tcp_ack == 1 and meta.tcp_psh == 0/* and meta.tcp_session_is_SYN == 1*/)
 	{
 		apply(session_complete_table);
 	}
 	else if (meta.tcp_syn == 1 and meta.tcp_ack == 1)
 	{
-		apply(relay_session_table); //check if it is syn/ack and change the register 
+		apply(relay_session_table); 
 	}
-	else if (meta.tcp_session_is_ACK == 1){
-		if (meta.in_port == 2 )
+
+	if(meta.tcp_psh == 1){
+		if (meta.in_port == 136 )
 		{
 			apply(outbound_tran_table);
 		}
-		else if	(meta.in_port == 1)
+		else if	(meta.in_port == 128)
 		{
 			apply(inbound_tran_table);
+			apply(inbound_tran_table2);
 		}
-		apply(forward_normal_table);
 	}
-
-	//apply(forward_table);
 
 }
 control egress {

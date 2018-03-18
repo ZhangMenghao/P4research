@@ -73,6 +73,10 @@ class SYNProxyTest(pd_base_tests.ThriftInterfaceDataPlane):
 
 	self.client.session_init_table_set_default_action_sendback_sa(self.sess_hdl,self.dev_tgt);
 	self.client.session_complete_table_set_default_action_sendh2syn(self.sess_hdl,self.dev_tgt);
+	self.client.relay_session_table_set_default_action_sendh2ack(self.sess_hdl,self.dev_tgt);
+	self.client.inbound_tran_table_set_default_action_inbound_transformation(self.sess_hdl,self.dev_tgt);
+	self.client.outbound_tran_table_set_default_action_outbound_transformation(self.sess_hdl,self.dev_tgt);
+	#self.client.outbound_tran_table_set_default_action_outbound_transformation(self.sess_hdl,self.dev_tgt);
 
 	self.client.session_check_set_default_action_lookup_session_map(self.sess_hdl,self.dev_tgt);
 	self.client.session_check_reverse_set_default_action_lookup_session_map_reverse(self.sess_hdl,self.dev_tgt);

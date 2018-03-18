@@ -8,7 +8,7 @@ make clean
 echo 'clean done!'
 ./configure --prefix=$SDE_INSTALL --with-tofino enable_thrift=yes P4_PATH=$SDE/synproxy/p4research/DoS/tofino/syntry.p4 P4_NAME=synproxy
 
-make
+make -j4
 echo 'make done!'
 make install
 echo 'make install done!'
