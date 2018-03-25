@@ -22,26 +22,16 @@ header_type ipv4_t {
 	dstAddr: 32;
 	}
 } 
-parser start {
-	set_metadata(meta.in_port, standard_metadata.ingress_port);//
-	return  parse_ethernet;
-}
+
 
 #define ETHERTYPE_IPV4 0x0800
 #define ETHERTYPE_IPV6 0x86DD
 header ethernet_t ethernet;
 
-parser parse_ethernet {
-	extract(ethernet);
-	set_metadata(meta.eth_da,ethernet.dstAddr);
-	set_metadata(meta.eth_sa,ethernet.srcAddr);
-	return select(latest.etherType) {
-		ETHERTYPE_IPV4 : parse_ipv4;
-		default: ingress;
-	}
-}
+
 
 header ipv4_t ipv4;
+
 
 field_list ipv4_checksum_list {
 	ipv4.version;
@@ -70,20 +60,9 @@ calculated_field ipv4.hdrChecksum  {
 	update ipv4_checksum;
 }
 
-#define IP_PORT_TCP 0x06
+#define IP_PROT_TCP 0x06
 
-parser parser_ipv4 {
-	extract(ipv4);
 
-	set_metadata(meta.ipv4_sa, ipv4.srcAddr);
-	set_metadata(meta.ipv4_da, ipv4.dstAddr);
-	set_metadata(meta.tcpLength, ipv4.totalLen - 20);	
-
-		return select(ipv4.protocol) {
-		IP_PROT_TCP : parse_tcp;
-		default: ingress;
-	}
-}
 
 
 header_type tcp_t {
@@ -107,6 +86,34 @@ header_type tcp_t {
 }
 
 header tcp_t tcp;
+
+
+
+parser start {
+	set_metadata(meta.in_port, standard_metadata.ingress_port);//
+	return  parse_ethernet;
+}
+parser parse_ethernet {
+	extract(ethernet);
+	set_metadata(meta.eth_da,ethernet.dstAddr);
+	set_metadata(meta.eth_sa,ethernet.srcAddr);
+	return select(latest.etherType) {
+		ETHERTYPE_IPV4 : parse_ipv4;
+		default: ingress;
+	}
+}
+parser parse_ipv4 {
+	extract(ipv4);
+
+	set_metadata(meta.ipv4_sa, ipv4.srcAddr);
+	set_metadata(meta.ipv4_da, ipv4.dstAddr);
+	set_metadata(meta.tcpLength, ipv4.totalLen - 20);	
+
+		return select(ipv4.protocol) {
+		IP_PROT_TCP : parse_tcp;
+		default: ingress;
+	}
+}
 
 parser parse_tcp {
 	extract(tcp);
@@ -220,25 +227,36 @@ register tcp_session_state {
 	width:8;
 	instance_count:8192;
 }
-
+register debug {
+	width:16;
+	instance_count :20;
+}
 action _drop() {
 	drop();
 }
+table drop_table{
+	actions {
+		_drop;
+	}
+}
 action lookup_whitelist()
 {
-	// modify_field_with_hash_based_offset(meta.tcp_session_map_index,0,
-										tcp_session_map_hash, 13);
-	
 	modify_field_with_hash_based_offset(meta.whitelist_map_index, 0,
 										whitelist_map_hash,13);
 	register_read(meta.whitelist_state,
 				  whitelist,
 				  meta.whitelist_map_index );
-	// register_read(meta.tcp_session_state,
-	// 				tcp_session_state,
-	// 				meta.tcp_session_map_index);
+
+	modify_field_with_hash_based_offset(meta.tcp_session_map_index,0,
+									tcp_session_map_hash, 13);
+	modify_field(tcp.ackNo,meta.tcp_seqNo);
+	add_to_field(tcp.ackNo,1);
+
+	register_read(meta.tcp_session_state,
+					tcp_session_state,
+					meta.tcp_session_map_index);
 		
-	)
+	
 
 }
 table whitelist_check_table {
@@ -254,6 +272,7 @@ action forward_normal(port)
 //https://github.com/p4lang/tutorials/blob/master/SIGCOMM_2017/exercises/basic/solution/basic.p4
 	modify_field(standard_metadata.egress_spec,port);
 }
+
 table forward_normal_table {
 	reads{
 		meta.in_port:exact;//maybe read mac or ip(midify ttl .etc) to select port
@@ -263,28 +282,98 @@ table forward_normal_table {
 		forward_normal;
 	}
 }
+action sendBackSynAck()
+{
+	modify_field(tcp.syn,1);
+	modify_field(tcp.ack,1);
+	modify_field(tcp.seqNo,0x0) ;
+	
+	modify_field(tcp.ackNo,meta.tcp_seqNo);
+	add_to_field(tcp.ackNo,1);
+	modify_field(ipv4.dstAddr, meta.ipv4_sa);
+	modify_field(ipv4.srcAddr, meta.ipv4_da);
+	modify_field(tcp.srcPort, meta.tcp_dp);
+	modify_field(tcp.dstPort, meta.tcp_sp);
+	modify_field(ethernet.dstAddr, meta.eth_sa);
+	modify_field(ethernet.srcAddr, meta.eth_da);
+		
+	modify_field(standard_metadata.egress_spec, meta.in_port);
+
+
+	register_write(tcp_session_state, meta.tcp_session_map_index,
+		1);
+}
+table session_init_table {
+
+	actions {
+		
+		sendBackSynAck;
+	}
+
+}
+
+action sendBackRst()
+{
+//	modify_field(tcp.syn,1);
+	modify_field(tcp.rst,1);
+//	modify_field(tcp.seqNo,0x0) ;
+	
+	// modify_field(tcp.ackNo,meta.tcp_seqNo);
+	// add_to_field(tcp.ackNo,1);
+	modify_field(ipv4.dstAddr, meta.ipv4_sa);
+	modify_field(ipv4.srcAddr, meta.ipv4_da);
+	modify_field(tcp.srcPort, meta.tcp_dp);
+	modify_field(tcp.dstPort, meta.tcp_sp);
+	modify_field(ethernet.dstAddr, meta.eth_sa);
+	modify_field(ethernet.srcAddr, meta.eth_da);
+		
+	modify_field(standard_metadata.egress_spec, meta.in_port);
+
+
+	register_write(tcp_session_state, meta.tcp_session_map_index,
+		2);
+	register_write(whitelist,meta.whitelist_map_index,1);
+}
+table session_construct_table {
+
+	actions {
+		sendBackRst;
+	}
+}
 control ingress {
 	apply(whitelist_check_table);
-	if (meta.whitelist_state == 1)
-	{//just forward
+	if (ethernet.etherType != ETHERTYPE_IPV4 or ipv4.protocol != IP_PROT_TCP or 
+	meta.whitelist_state == 1)
+	{
 		apply(forward_normal_table);
 	}
+	
 	else
 	{
-		if (meta.tcp_syn == 1 && meta.tcp_ack == 0 &&meta.session_state == 0 )
+		if (meta.tcp_syn == 1 and meta.tcp_ack == 0 and meta.tcp_session_state == 0 )
 		{
 			//sendback syn/ack
+			apply(session_init_table);
+
 		}
-		else if (meta.tcp_syn == 1 && meta.tcp_ack == 1 && meta.session_state == 1)
-		{
-			//send back ack
+		// else if (meta.tcp_syn == 1 && meta.tcp_ack == 1 && meta.session_state == 1)
+		// {
+			
+		// 	//send back ack
+		// }
+		else if (meta.tcp_syn == 0 and meta.tcp_ack == 1 and meta.tcp_session_state == 1)
+		{//verify the ack num  and RST
+			if (meta.tcp_ackNo == 0x1)
+			{
+				apply(session_construct_table);
+			}
 		}
-		else if (meta-tcp_syn == 0 && meta.tcp_ack == 1 && meta.session_state == 4)
-		{
-			//verify the ack num  and RST
+		else{
+			apply(drop_table);
 		}
 
 	}
+	
 	
 }
 control egress{

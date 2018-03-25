@@ -24,14 +24,14 @@ SWITCH_PATH=$BMV2_PATH/targets/simple_switch/simple_switch
 
 CLI_PATH=$BMV2_PATH/tools/runtime_CLI.py
 
-TARGET=syntry
+TARGET=proxyswitch
 TARGET_SRC=$TARGET.p4
 TARGET_JSON=$TARGET.json
 
 $P4C_BM_SCRIPT p4src/$TARGET_SRC --json $TARGET_JSON
 # This gives libtool the opportunity to "warm-up"
 sudo $SWITCH_PATH >/dev/null 2>&1
-sudo PYTHONPATH=$PYTHONPATH:$BMV2_PATH/mininet/ python topo.py \
+sudo PYTHONPATH=$PYTHONPATH:$BMV2_PATH/mininet/ python toponoipv6.py \
     --behavioral-exe $SWITCH_PATH \
     --json $TARGET_JSON \
     --cli $CLI_PATH \

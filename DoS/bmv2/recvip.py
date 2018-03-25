@@ -7,7 +7,7 @@ def handle_pkt(pkt):
 
 
 def main():
-    dkpt =  sniff(iface = "eth0",
+    dkpt =  sniff(iface = "veth6",
                   prn = lambda x: x.show())
     wrpcap("demo.pacp",dkpt)
 

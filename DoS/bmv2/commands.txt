@@ -1,21 +1,9 @@
-table_set_default session_check _drop
-table_set_default session_init_table init_session
-table_set_default session_complete_table complete_session
-table_set_default handle_resubmit_table set_resubmit
-table_set_default relay_session_table relay_session
+table_set_default drop_table _drop
+table_set_default whitelist_check_table lookup_whitelist
 table_set_default forward_normal_table _drop
-table_set_default forward_table _drop
-table_set_default outbound_tran_table outbound_transformation
-table_set_default inbound_tran_table inbound_transformation
+table_set_default session_init_table sendBackSynAck
+table_set_default session_construct_table sendBackRst
 
-table_add session_check lookup_session_map 1 =>
-table_add session_check lookup_session_map_reverse 2 =>
 
-table_add forward_normal_table set_forward_normal 1 => 2
-table_add forward_normal_table set_forward_normal 2 => 1
-
-table_add forward_table sendback_sa  1  => 
-table_add forward_table sendh2syn   2  => 2
-table_add forward_table sendh2ack   3  => 
-table_add forward_table _resubmit   4  => 
-table_add forward_table forward_normal 5 => 
+table_add forward_normal_table forward_normal  1  => 2
+table_add forward_normal_table forward_normal  2  => 1
