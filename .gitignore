@@ -8,3 +8,7 @@
 *~
 #png
 *.png
+#json
+*.json
+ss-log.txt
+
