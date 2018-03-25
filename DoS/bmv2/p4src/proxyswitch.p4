@@ -177,7 +177,10 @@ header_type meta_t {
 		tcp_fin:1;
 		tcp_seqNo:32;
 		tcp_ackNo:32;
-		session_state:8;//0 no packet before; 1 send syn ;2 back syn/ack; 3sent ack 
+		tcp_session_state:8;//0 no packet before; 1 send syn ;2 back syn/ack; 3sent ack 
+		whitelist_state:8;
+		tcp_session_map_index:13;
+		whitelist_map_index:13;
 	}
 }
 
@@ -199,13 +202,13 @@ field_list_calculation tcp_session_map_hash {
 
 }
 
-field_list reverse_l3_hash_fields {
-    ipv4.dstAddr;   
-	ipv4.srcAddr;
-	ipv4.protocol;
-	
-	tcp.dstPort;	
-	tcp.srcPort;
+field_list_calculation whitelist_map_hash {
+
+	input {
+		l3_hash_fields;
+	}
+	algorithm:crc16;
+	output_width:13;
 }
 
 register whitelist{
@@ -213,13 +216,58 @@ register whitelist{
 	instance_count:8192;
 }
 
-register 
+register tcp_session_state {
+	width:8;
+	instance_count:8192;
+}
 
+action _drop() {
+	drop();
+}
+action lookup_whitelist()
+{
+	// modify_field_with_hash_based_offset(meta.tcp_session_map_index,0,
+										tcp_session_map_hash, 13);
+	
+	modify_field_with_hash_based_offset(meta.whitelist_map_index, 0,
+										whitelist_map_hash,13);
+	register_read(meta.whitelist_state,
+				  whitelist,
+				  meta.whitelist_map_index );
+	// register_read(meta.tcp_session_state,
+	// 				tcp_session_state,
+	// 				meta.tcp_session_map_index);
+		
+	)
+
+}
+table whitelist_check_table {
+
+	actions {
+		lookup_whitelist;
+		
+	}
+}
+
+action forward_normal(port)
+{//need to modify src mac  dst mac and ip.ttl 
+//https://github.com/p4lang/tutorials/blob/master/SIGCOMM_2017/exercises/basic/solution/basic.p4
+	modify_field(standard_metadata.egress_spec,port);
+}
+table forward_normal_table {
+	reads{
+		meta.in_port:exact;//maybe read mac or ip(midify ttl .etc) to select port
+	}
+	actions{
+		_drop;
+		forward_normal;
+	}
+}
 control ingress {
-	apply(whitelist_check);
-	if (meta.isWhite == 1)
+	apply(whitelist_check_table);
+	if (meta.whitelist_state == 1)
 	{//just forward
-
+		apply(forward_normal_table);
 	}
 	else
 	{
@@ -237,8 +285,6 @@ control ingress {
 		}
 
 	}
-
-	apply(for)
 	
 }
 control egress{
