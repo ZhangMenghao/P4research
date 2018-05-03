@@ -33,13 +33,8 @@ header_type tcp_t {
 		seqNo : 32;
 		ackNo : 32;
 		dataOffset : 4;
-        res : 4;
-        flags : 3;
-		ack: 1;
-		psh: 1;
-		rst: 1;
-		syn: 1;
-		fin: 1;		 
+        res : 6;
+		flags : 6;	 
         window : 16;
         checksum : 16;
         urgentPtr : 16;
@@ -161,11 +156,7 @@ parser parse_tcp {
 	extract(tcp);
 	set_metadata(meta.tcp_sp, tcp.srcPort);
 	set_metadata(meta.tcp_dp, tcp.dstPort);
-	set_metadata(meta.tcp_ack, tcp.ack);
-	// set_metadata(meta.tcp_psh, tcp.psh);
-	// set_metadata(meta.tcp_rst, tcp.rst);
-	set_metadata(meta.tcp_syn, tcp.syn);
-	// set_metadata(meta.tcp_fin, tcp.fin);	
+	set_metadata(meta.tcp_flags, tcp.flags);
 	set_metadata(meta.tcp_seqNo, tcp.seqNo);
 	set_metadata(meta.tcp_ackNo, tcp.ackNo);	
 	return ingress;
@@ -176,44 +167,63 @@ parser parse_tcp {
 /**************************************/
 /**************METADATA****************/
 /**************************************/
-#define OFF 0
-#define ON 1
+// for syn proxy
+#define PROXY_OFF 1'0
+#define PROXY_ON 1'1
+// for forward strategy
+#define UNKNOWN 2'0
+#define FORWARD_DROP_PKT 2'1	// drop packet
+#define FORWARD_REPLY_SA 2'2	// reply client with syn+ack and a certain seq no.
+#define FORWARD_ESTABLISH_WITH_SERVER 2'3	// handshake with client finished, start establishing connection with server
+#define FORWARD_CONNECTION_ESTABLISHED 2'4	// syn+ack from server received. connection established.
+#define FORWARD_NORMALLY 2'5	// forward normally
+// for tcp flags
+#define TCP_FLAG_URG 6'0x20
+#define TCP_FLAG_ACK 6'0x10
+#define TCP_FLAG_PSH 6'0x08
+#define TCP_FLAG_RST 6'0x04
+#define TCP_FLAG_SYN 6'0x02
+#define TCP_FLAG_FIN 6'0x01
+
 header_type meta_t {
 	fields {
 		// ethernet information
-		eth_sa:48;		// eth src addr
-		eth_da:48;		// eth des addr
+		// eth_sa:48;		// eth src addr
+		// eth_da:48;		// eth des addr
 		// ip information
-        ipv4_sa : 32;	// ipv4 src addr
-        ipv4_da : 32;	// ipv4 des addr
+        // ipv4_sa : 32;	// ipv4 src addr
+        // ipv4_da : 32;	// ipv4 des addr
 		// tcp information
-        tcp_sp : 16;	// tcp src port
-        tcp_dp : 16;	// tcp des port
-        tcp_length : 16;	// tcp packet length
-		tcp_ack:1;		// ack bit
-		// tcp_psh:1;		// push bit
-		// tcp_rst:1;		// reset bit
-		tcp_syn:1;		// sync bit
-		// tcp_fin:1;		// finish bit
-		tcp_seqNo:32;	// tcp seq no.
+        // tcp_sp : 16;	// tcp src port
+        // tcp_dp : 16;	// tcp des port
+        // tcp_length : 16;	// tcp packet length
+		// tcp_flags : 6;	// tcp flags: urg, ack, psh, rst, syn, fin
 		// tcp_h1seq:32;	// 
 		// tcp_seqOffset:32;
-		tcp_ackNo:32;
+		// tcp_ackNo:32;
 		// tcp_h2seq:32;
 		// tcp_ackOffset:32;
 		
 		// forward information
-		reply_type:4;	// 0: drop // 1: syn+ack back to h1 // 02: syn to h2 // 03: send h2 ack // 04: resubmit // 05: forward the packet as normal  
+		forward_strategy : 4;	// 0: drop // 1: syn+ack back to h1 // 02: syn to h2 // 03: send h2 ack // 04: resubmit // 05: forward the packet as normal  
         nhop_ipv4 : 32;	// ipv4 next hop
         // if_ipv4_addr : 32;
         // if_mac_addr : 48;
         // is_ext_if : 1;
         in_port : 8;	// in port (of switch)
-		out_port:8;		// out port (of switch)
+		out_port :8;		// out port (of switch)
 	
 		// syn meter result (3 colors)
 		syn_meter_result : 2;	// METER_COLOR_RED, METER_COLOR_YELLOW, METER_COLOR_GREEN
-		syn_proxy_status : 1;	// 0 for OFF, 1 for ON
+		syn_proxy_status : 1;	// 0 for PROXY_OFF, 1 for PROXY_ON
+		// 8 bits index for seq# selection in syn+ack
+		eight_bit_index : 8;
+		// seq num in syn+ack
+		sa_seq_num : 32;
+
+		// counter of syn packets and valid ack packets
+		syn_counter_val : 32;
+		valid_ack_counter_val : 32;
 		
 		// tcp_session_map_index :  13;
 		// dstip_pktcount_map_index: 13;
@@ -236,35 +246,24 @@ metadata meta_t meta;
 /***************REGISTERS**************/
 /****11 * 8192 byte = 88KB in total****/
 register syn_proxy_status {
-	width: 1;
+	width : 1;
 	instance_count : 0;
 }
-register tcp_session_is_SYN {
-	width : 8;
-	instance_count: 8192;
-}
-register tcp_session_is_ACK {
-	width : 8;
-	instance_count: 8192;
-}
-register tcp_session_h2_reply_sa{
-	width : 8;
-	instance_count: 8192;
-}
-
-register h1_seq{
+register sa_seq_num_pool {
 	width : 32;
-	instance_count: 8192;
+	instance_count : 255;	//8 bit field
 }
-
-register h2_seq{
-	width : 32;
-	instance_count: 8192;
+counter syn_counter {
+	type : packets;
+	static : confirm_connection_table;
+	min_width : 32;
+	instance_count : 1;
 }
-
-register dstip_pktcount {
-	width : 32; 
-	instance_count: 8192;
+counter valid_ack_counter {
+	type : packets;
+	static : valid_connection_table;
+	min_width : 32;
+	instance_count : 1;
 }
 /*************REGISTERS ENDS***********/
 
@@ -277,432 +276,274 @@ action _drop() {
 	drop();
 }
 
-/*******for syn_meter_table******/
-{
-	meter syn_meter {
-		type : packets;
-		static : syn_meter_table;
-		instance_count : 1;
-	}
-	action syn_meter_action() {
-		// update syn meter, get the result
-		execute_meter(syn_meter, 0, meta.syn_meter_result);
-		// turn on the switch of syn proxy if syn is too much (fast)
-		if(meta.syn_meter_result == METER_COLOR_RED) {
-			// i guess red color means large number of syn packets
-			register_write(syn_proxy_status, 0, ON);
-		}
-	}
-	table syn_meter_table {
-		reads {
-			meta.tcp_syn : exact;
-		}
-		actions {
-			_no_op;
-			syn_meter_action;
-		}
-	}
-}
-
-// 5-tuple hash
-{
-	field_list l3_hash_fields {
-		ipv4.srcAddr;   
-		ipv4.dstAddr;
-		ipv4.protocol;
-		tcp.srcPort;	
-		tcp.dstPort;
-	}
-	field_list_calculation tcp_session_map_hash {
-		input {
-			l3_hash_fields;
-		}
-		algorithm: crc16;
-		output_width: 13;	// is 8192 enough ?
-
-	}
-}
-
-field_list reverse_l3_hash_fields {
-    ipv4.dstAddr;   
-	ipv4.srcAddr;
-	ipv4.protocol;
-	
-	tcp.dstPort;	
-	tcp.srcPort;
-}
-
-//reverse the src address and dst address, src port and dst port, to get the hash of the reply-packet of this packet 
-//for example: h1 has a session with h2, according the reverse-hash of packet from h2, we can get the hash of packet from h1.
-field_list_calculation reverse_tcp_session_map_hash{
-	input {
-		reverse_l3_hash_fields;
-	}
-	algorithm: crc16;
-	output_width: 13;
-}
-
-field_list dstip_hash_fields {
-	ipv4.dstAddr;
-}
-
-field_list_calculation dstip_map_hash {
-	input {
-		dstip_hash_fields;
-	}
-	algorithm: crc16;
-	output_width: 13;
-}
-
-field_list resubmit_FL {
-	standard_metadata;
-	meta;	
-	
-}
-
-//************************************for session_check table************************************
-action lookup_session_map()
-{//from packet come in through port1
-	modify_field_with_hash_based_offset(meta.tcp_session_map_index,0,
-										tcp_session_map_hash, 13);
-	modify_field_with_hash_based_offset(meta.dstip_pktcount_map_index,0,
-											dstip_map_hash,13);
-	
-	register_read(meta.dstip_pktcount,
-				 dstip_pktcount, meta.dstip_pktcount_map_index);
-
-	add_to_field(meta.dstip_pktcount,  1);
-
-	register_write(dstip_pktcount,
-				   meta.dstip_pktcount_map_index,
-					meta.dstip_pktcount);
-
-	register_read(meta.tcp_session_is_SYN,
-				  tcp_session_is_SYN, meta.tcp_session_map_index);
-	
-	register_read(meta.tcp_session_is_ACK,
-				  tcp_session_is_ACK, meta.tcp_session_map_index);
-
-	register_read(meta.tcp_session_h2_reply_sa,
-				  tcp_session_h2_reply_sa, meta.tcp_session_map_index);
-}
-
-action lookup_session_map_reverse()
-{//for packet come in through port2, get the reverse-hash
-	modify_field_with_hash_based_offset(meta.tcp_session_map_index,0,
-										reverse_tcp_session_map_hash, 13);
-
-	modify_field_with_hash_based_offset(meta.dstip_pktcount_map_index,0,
-											dstip_map_hash,13);
-	
-	register_read(meta.dstip_pktcount,
-				 dstip_pktcount, meta.dstip_pktcount_map_index);
-
-	add_to_field(meta.dstip_pktcount,  1);
-
-	register_write(dstip_pktcount,
-				   meta.dstip_pktcount_map_index,
-					meta.dstip_pktcount);
-
-	register_read(meta.tcp_session_is_SYN,
-				  tcp_session_is_SYN, meta.tcp_session_map_index);
-	
-	register_read(meta.tcp_session_is_ACK,
-				  tcp_session_is_ACK, meta.tcp_session_map_index);
-
-
-	register_read(meta.tcp_session_h2_reply_sa,
-				  tcp_session_h2_reply_sa, meta.tcp_session_map_index);
-}
-
-table session_check {
-	reads {
-		meta.in_port:exact;
-	}
-	actions {
-	    _drop;	
-		lookup_session_map_reverse;
-		lookup_session_map;}
-}
-
-//**************************for session_init_table*******************
-action init_session()
-{
-	modify_field(meta.reply_type,1);//1 means forward_table should return a SA to h1i
-
-	register_write(tcp_session_is_SYN, meta.tcp_session_map_index,
-					1);
-	register_write(tcp_session_is_ACK, meta.tcp_session_map_index,0);
-
-	register_write(tcp_session_h2_reply_sa, meta.tcp_session_map_index,0);
-
-	register_write(h1_seq, meta.tcp_session_map_index,meta.tcp_seqNo);
-}
-
-table session_init_table {
-	actions { init_session; }
-	
-}
-
-
-//*******************for session_complete_table**********************
-action complete_session()
-{
-	modify_field(meta.reply_type,2);// 2 means forward_table should send a syn to h2
-
-	register_write(tcp_session_is_SYN, meta.tcp_session_map_index,
-					1);
-	register_write(tcp_session_is_ACK, meta.tcp_session_map_index,1);
-
-	register_write(tcp_session_h2_reply_sa, meta.tcp_session_map_index, 0);	
-
-}
-
-table session_complete_table {
-	actions { complete_session;}
-}
-
-//*******************************for handle_resubmit_table*
-action set_resubmit()
-{
-	modify_field(meta.reply_type, 4);//4 means just resubmit it 
-}
-
-table handle_resubmit_table{
-	actions 
-	{
-		set_resubmit;
-	}
-
-}
-
-//  ********************************for relay_session_table
-//
-action relay_session()
-{
-
-	modify_field(meta.reply_type,3);//not to drop  we should return a ack to h2 (don't forget to swap the ip and macs 
-
-	register_write(tcp_session_is_SYN, meta.tcp_session_map_index,
-					1);
-	register_write(tcp_session_is_ACK, meta.tcp_session_map_index,1);
-
-	register_write(tcp_session_h2_reply_sa, meta.tcp_session_map_index, 1);	
-
-	register_write(h2_seq,meta.tcp_session_map_index,meta.tcp_seqNo);
-
-}
-
-table relay_session_table
-{
-	actions{
-		relay_session;
-	}	
-}
-
-action inbound_transformation()
-{
-	// seq here by pass
-	// ack should extract the initial seq given by switch, here 0ddkk
-
-	register_read(meta.tcp_h2seq,
-				  h2_seq, meta.tcp_session_map_index);
-	subtract(meta.tcp_ackOffset,meta.tcp_ackNo,0);
-	add(meta.tcp_ackNo,meta.tcp_ackOffset,meta.tcp_h2seq);
-	modify_field(tcp.ackNo,meta.tcp_ackNo);
-        modify_field(ipv4.ttl,32);
-}
-
-table inbound_tran_table
-{
-	actions{
-		inbound_transformation;
-	}
-}
-
-action outbound_transformation()
-{
-	register_read(meta.tcp_h2seq,
-				  h2_seq, meta.tcp_session_map_index);
-        subtract(meta.tcp_seqOffset,meta.tcp_seqNo,meta.tcp_h2seq);
-        add(meta.tcp_seqNo,meta.tcp_seqOffset,0);
-        modify_field(tcp.seqNo,meta.tcp_seqNo);
-        modify_field(ipv4.ttl,32);
-
-}
-
-table outbound_tran_table
-{
-        actions{
-                outbound_transformation;
-        }
-}
-
-//*************************forward_normal_table
-action set_forward_normal(port)
-{
-	modify_field(meta.reply_type, 5);
-	modify_field(meta.out_port,port); 
-}
-
-table forward_normal_table
-{
-	reads{
-		meta.in_port:exact;
-	}
-	actions{
-		_drop;
-		set_forward_normal;
-	}
-}
-
-
-//**********for forward_table 
-action forward_normal()
-{//////05
-	
-	//There should be seq or ack transform 
-	//change src mac and dst mac!!
-
-	modify_field(standard_metadata.egress_spec, meta.out_port);
-
-}
-
 action _resubmit()
 {// 04
 	resubmit(resubmit_FL);
 }
 
-action sendback_sa()
+
+/*******for syn_meter_table******/
 {
-	modify_field(tcp.syn,1);
-	modify_field(tcp.ack,1);
-	modify_field(tcp.seqNo,0x0) ;
-	
-	modify_field(tcp.ackNo,meta.tcp_seqNo);
-	add_to_field(tcp.ackNo,1);
-	modify_field(ipv4.dstAddr, meta.ipv4_sa);
-	modify_field(ipv4.srcAddr, meta.ipv4_da);
-	modify_field(tcp.srcPort, meta.tcp_dp);
-	modify_field(tcp.dstPort, meta.tcp_sp);
-	modify_field(ethernet.dstAddr, meta.eth_sa);
-	modify_field(ethernet.srcAddr, meta.eth_da);
-		
-	modify_field(standard_metadata.egress_spec, meta.in_port);
-}
-
-action sendback_session_construct()
-{
-	modify_field(tcp.fin,1);
-	modify_field(standard_metadata.egress_spec, meta.in_port);
-}
-
-
-action setack(port)
-{
-	modify_field(tcp.syn,0);
-	modify_field(tcp.ack,1);
-	modify_field(tcp.seqNo, meta.dstip_pktcount);
-	modify_field(standard_metadata.egress_spec, port);
-}
-
-action sendh2ack()
-{
-	modify_field(tcp.syn,0);
-	modify_field(tcp.ack,1);
-	modify_field(tcp.ackNo, meta.tcp_seqNo);
-	add_to_field(tcp.ackNo,1);
-
-	modify_field(tcp.seqNo,meta.tcp_ackNo) ;
-	modify_field(ipv4.dstAddr, meta.ipv4_sa);
-	modify_field(ipv4.srcAddr, meta.ipv4_da);
-	modify_field(tcp.srcPort, meta.tcp_dp);
-	modify_field(tcp.dstPort, meta.tcp_sp);
-	modify_field(ethernet.dstAddr, meta.eth_sa);
-	modify_field(ethernet.srcAddr, meta.eth_da);
-		
-	modify_field(standard_metadata.egress_spec, meta.in_port);
-}
-
-action sendh2syn(port)
-{
-	modify_field(tcp.syn,1);
-	modify_field(tcp.ack,0);
-	modify_field(tcp.seqNo, meta.tcp_seqNo);
-	add_to_field(tcp.seqNo, -1);
-	modify_field(tcp.ackNo,0);
-	
-	modify_field(standard_metadata.egress_spec,port);
-}
-
-//00 noreply  01 syn/ack back to h1  02 syn to h2  03 undifined  04 resubmit 05forward the packet 
-table forward_table{
-	reads{
-		meta.reply_type:exact;
+	meter syn_meter {
+		type : packets;
+		result : meta.syn_meter_result;
+		direct : syn_meter_table;
 	}
-
-	actions{
-		forward_normal;//reply_type:05
-		_resubmit;//04
-		sendh2ack;// 03
-		sendh2syn;//02
-		sendback_sa;//01
-		sendback_session_construct;
-		_drop;//0	
+	action syn_meter_action() {
+		// turn on the switch of syn proxy if syn is too much (fast)
+		if(meta.syn_meter_result == METER_COLOR_RED) {
+			// i guess red color means large number of syn packets
+			register_write(syn_proxy_status, 0, PROXY_ON);
+		}
+		// read syn proxy status into metadata
+		register_read(meta.syn_proxy_status, syn_proxy_status, 0);
+	}
+	table syn_meter_table {
+		actions {
+			syn_meter_action;
+		}
 	}
 }
+/******for valid_connection_table*******/
+{
+	action set_ignore_syn_proxy_action() {
+		modify_field(meta.forward_strategy, FORWARD_NORMALLY);
+	}
+	table valid_connection_table {
+		reads {
+			ipv4.srcAddr : exact;
+			ipv4.dstAddr : exact;
+			ipv4.protocol : exact;
+			tcp.srcPort : exact;
+			tcp.dstPort : exact;
+		}
+		actions {
+			_no_op;
+			set_ignore_syn_proxy_action;
+		}
+	}
+}
+/*******for eight_bit_index_select_table******/
+{
+	action eight_bit_index_select(ip_mask, ip_e_pos, port_mask, port_e_pos) {
+		// masks must be 4 bits in a row
+		// e.g. 00111100 00000000 00000000 00000000 (0x3c000000)
+		modify_field(meta.eight_bit_index, 
+				(((ipv4.srcAddr & ip_mask) >> ip_e_pos) << 4) | ((tcp.srcPort & port_mask) >> port_e_pos));
+	}
+	table eight_bit_index_select_table {
+		actions {
+			eight_bit_index_select;
+		}
+	}
+}
+/*******for reply_sa_table******/
+{
+	action reply_sa() {
+		modify_field(meta.forward_strategy, FORWARD_REPLY_SA);
+		// select syn+ack packet seq#
+		register_read(meta.sa_seq_num, sa_seq_num_pool, meta.eight_bit_index);
+		// count: syn packet
+		count(syn_counter, 0);
+	}
+	table reply_sa_table {
+		actions {
+			reply_sa;
+		}
+	}
+}
+/*******for confirm_connection_table******/
+{
+	action confirm_connection() {
+		// select syn+ack packet seq#
+		register_read(meta.sa_seq_num, sa_seq_num_pool, meta.eight_bit_index);
+		if(tcp.ackNo == meta.sa_seq_num + 1) {
+			// valid ack#
+			modify_field(meta.forward_strategy, FORWARD_ESTABLISH_WITH_SERVER);
+			// count: valid ack
+			count(valid_ack_counter, 0);
+			// TODO: 记得把这个connection存储起来
+		} else{
+			modify_field(meta.forward_strategy, FORWARD_DROP_PKT);
+		}
+	}
+	table confirm_connection_table {
+		actions {
+			confirm_connection;
+		}
+	}
+}
+/*******for check_syn_and_valid_ack_num_table******/
+{
+	action check_syn_and_valid_ack_num() {
+		// check the difference between
+		// the number of syn packets and the number of valid ack
+		register_read(meta.syn_counter_val, syn_counter, 0);
+		register_read(meta.valid_ack_counter_val, valid_ack_counter, 0);
+		// if the difference of the two is less than 1/8 of the smaller one
+		// we think that the number of syn pkts and valid ack pkts are roughly equal
+		// shutdown syn proxy
+		if(meta.syn_counter_val >= meta.valid_ack_counter_val){
+			if((meta.syn_counter_val - meta.valid_ack_counter_val) > (meta.valid_ack_counter_val >> 3)){
+				register_write(syn_proxy_status, 0, PROXY_OFF);
+			}
+		}else{
+			if((meta.valid_ack_counter_val - meta.syn_counter_val) > (meta.syn_counter_val >> 3)){
+				register_write(syn_proxy_status, 0, PROXY_OFF);
+			}
+		}
+	}
+	table check_syn_and_valid_ack_num_table {
+		actions {
+			check_syn_and_valid_ack_num;
+		}
+	}
+}
+/*******for no_syn_proxy_table******/
+{
+	action no_syn_proxy() {
+		// forward every packets normally
+		modify_field(meta.forward_strategy, FORWARD_NORMALLY);	
+	}
+	table no_syn_proxy_table {
+		actions {
+			no_syn_proxy;
+		}
+	}
+}
+
+// //**********for forward_table 
+// action forward_normal()
+// {//////05
+	
+// 	//There should be seq or ack transform 
+// 	//change src mac and dst mac!!
+
+// 	modify_field(standard_metadata.egress_spec, meta.out_port);
+
+// }
+
+// action sendback_sa()
+// {
+// 	modify_field(tcp.syn,1);
+// 	modify_field(tcp.ack,1);
+// 	modify_field(tcp.seqNo,0x0) ;
+	
+// 	modify_field(tcp.ackNo,meta.tcp_seqNo);
+// 	add_to_field(tcp.ackNo,1);
+// 	modify_field(ipv4.dstAddr, meta.ipv4_sa);
+// 	modify_field(ipv4.srcAddr, meta.ipv4_da);
+// 	modify_field(tcp.srcPort, meta.tcp_dp);
+// 	modify_field(tcp.dstPort, meta.tcp_sp);
+// 	modify_field(ethernet.dstAddr, meta.eth_sa);
+// 	modify_field(ethernet.srcAddr, meta.eth_da);
+		
+// 	modify_field(standard_metadata.egress_spec, meta.in_port);
+// }
+
+// action sendback_session_construct()
+// {
+// 	modify_field(tcp.fin,1);
+// 	modify_field(standard_metadata.egress_spec, meta.in_port);
+// }
+
+
+// action setack(port)
+// {
+// 	modify_field(tcp.syn,0);
+// 	modify_field(tcp.ack,1);
+// 	modify_field(tcp.seqNo, meta.dstip_pktcount);
+// 	modify_field(standard_metadata.egress_spec, port);
+// }
+
+// action sendh2ack()
+// {
+// 	modify_field(tcp.syn,0);
+// 	modify_field(tcp.ack,1);
+// 	modify_field(tcp.ackNo, meta.tcp_seqNo);
+// 	add_to_field(tcp.ackNo,1);
+
+// 	modify_field(tcp.seqNo,meta.tcp_ackNo) ;
+// 	modify_field(ipv4.dstAddr, meta.ipv4_sa);
+// 	modify_field(ipv4.srcAddr, meta.ipv4_da);
+// 	modify_field(tcp.srcPort, meta.tcp_dp);
+// 	modify_field(tcp.dstPort, meta.tcp_sp);
+// 	modify_field(ethernet.dstAddr, meta.eth_sa);
+// 	modify_field(ethernet.srcAddr, meta.eth_da);
+		
+// 	modify_field(standard_metadata.egress_spec, meta.in_port);
+// }
+
+// action sendh2syn(port)
+// {
+// 	modify_field(tcp.syn,1);
+// 	modify_field(tcp.ack,0);
+// 	modify_field(tcp.seqNo, meta.tcp_seqNo);
+// 	add_to_field(tcp.seqNo, -1);
+// 	modify_field(tcp.ackNo,0);
+	
+// 	modify_field(standard_metadata.egress_spec,port);
+// }
+
+// //00 noreply  01 syn/ack back to h1  02 syn to h2  03 undifined  04 resubmit 05forward the packet 
+// table forward_table{
+// 	reads{
+// 		meta.forward_strategy:exact;
+// 	}
+
+// 	actions{
+// 		forward_normal;//forward_strategy:05
+// 		_resubmit;//04
+// 		sendh2ack;// 03
+// 		sendh2syn;//02
+// 		sendback_sa;//01
+// 		sendback_session_construct;
+// 		_drop;//0	
+// 	}
+// }
 
 control ingress {
 	// first count syn packets
-	apply(syn_meter_table);
-	register_read(meta.syn_proxy_status, syn_proxy_status, 0);
-	if(meta.syn_proxy_status == ON){
-		// syn proxy on
-		apply();
+	if(tcp.flags ^ TCP_FLAG_SYN == 0){
+		// only has syn
+		apply(syn_meter_table);
 	}
-	// apply(session_check);
-	// if (meta.tcp_session_is_SYN == 0 and meta.tcp_session_is_ACK == 0 and meta.tcp_session_h2_reply_sa ==0)	
-	// {
-	// 	if (meta.tcp_syn == 1 and meta.tcp_ack == 0)
-	// 	{
-	// 		apply(session_init_table);
-	// 	}
-	// }
-	// else if (meta.tcp_session_is_SYN == 1 and meta.tcp_session_is_ACK == 0 and meta.tcp_session_h2_reply_sa == 0)
-	// {
-	// 	if (meta.tcp_syn == 0 and meta.tcp_ack == 1)
-	// 	{
-	// 		apply(session_complete_table);
-	// 	}
-	// }
-	// else if (meta.tcp_session_is_SYN == 1 and meta.tcp_session_is_ACK == 1 and meta.tcp_session_h2_reply_sa == 0)
-	// {
-	// 	if (meta.in_port == 2 )//expandability will be too poor
-	// 	{
-	// 		apply(relay_session_table); //check if it is syn/ack and change the register 
-	// 	}	
-	// 	else
-	// 	{
-	// 		//set the reply_type to let forward_table directly resubmit 
-	// 		//apply(inbound_tranformation_table);
-	// 		apply(handle_resubmit_table);
-	// 	}
-	// }
-	// else 
-	// {
-	// 	if (meta.in_port == 2 )
-	// 	{
-	// 		apply(outbound_tran_table);
-	// 	}
-	// 	else if	(meta.in_port == 1)
-	// 	{
-	// 		apply(inbound_tran_table);
-	// 	}
-	// 	apply(forward_normal_table);
-	
-	// }
-
-	// apply(forward_table);	
+	// check if this connection has been successfully established before
+	// if so, ignore syn proxy mechanism
+	apply(valid_connection_table);
+	if(meta.forward_strategy != FORWARD_NORMALLY){
+		// does not exist in valid_connection_table.
+		// check if syn proxy is on
+		if(meta.syn_proxy_status == PROXY_ON){
+			// syn proxy on
+			// no need for session check since we use stateless SYN-cookie method
+			if(tcp.flags & (TCP_FLAG_ACK | TCP_FLAG_SYN) == (TCP_FLAG_ACK | TCP_FLAG_SYN)){
+				// has syn + ack, may also have other flags
+				
+			} else if(tcp.flags & TCP_FLAG_SYN == TCP_FLAG_SYN){
+				// has syn but no ack
+				// send back syn+ack with special seq#
+				apply(eight_bit_index_select_table);
+				apply(reply_sa_table);
+			} else if(tcp.flags & TCP_FLAG_ACK == TCP_FLAG_ACK){
+				// has ack but no syn
+				// make sure ack# is right
+				apply(eight_bit_index_select_table);
+				apply(confirm_connection_table);
+			}
+			// check the difference between
+			// the number of syn packets and the number of valid ack
+			apply(check_syn_and_valid_ack_num_table);
+		}else {
+			// syn proxy off
+			// forward every packets normally
+			apply(no_syn_proxy_table);
+		}
+	}
+	if(meta.forward_strategy == FORWARD_NORMALLY){
+		// TODO: next steps (detect packet size & num from each source ip)
+	}
+	apply(forward_table);	
 }
 
 control egress {
