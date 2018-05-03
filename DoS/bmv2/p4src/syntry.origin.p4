@@ -112,7 +112,7 @@ parser parse_ipv4 {
 	
 	set_metadata(meta.ipv4_sa, ipv4.srcAddr);
 	set_metadata(meta.ipv4_da, ipv4.dstAddr);
-	set_metadata(meta.tcp_length, ipv4.totalLen - 20);	
+	set_metadata(meta.tcpLength, ipv4.totalLen - 20);	
 	return select(ipv4.protocol) {
 		IP_PROT_TCP : parse_tcp;
 		default: ingress;
@@ -125,7 +125,7 @@ field_list tcp_checksum_list {
         ipv4.dstAddr;
         8'0;
         ipv4.protocol;
-        meta.tcp_length;
+        meta.tcpLength;
         tcp.srcPort;
         tcp.dstPort;
         tcp.seqNo;
@@ -162,10 +162,10 @@ parser parse_tcp {
 	set_metadata(meta.tcp_sp, tcp.srcPort);
 	set_metadata(meta.tcp_dp, tcp.dstPort);
 	set_metadata(meta.tcp_ack, tcp.ack);
-	// set_metadata(meta.tcp_psh, tcp.psh);
-	// set_metadata(meta.tcp_rst, tcp.rst);
+	set_metadata(meta.tcp_psh, tcp.psh);
+	set_metadata(meta.tcp_rst, tcp.rst);
 	set_metadata(meta.tcp_syn, tcp.syn);
-	// set_metadata(meta.tcp_fin, tcp.fin);	
+	set_metadata(meta.tcp_fin, tcp.fin);	
 	set_metadata(meta.tcp_seqNo, tcp.seqNo);
 	set_metadata(meta.tcp_ackNo, tcp.ackNo);	
 	return ingress;
@@ -176,54 +176,44 @@ parser parse_tcp {
 /**************************************/
 /**************METADATA****************/
 /**************************************/
-#define OFF 0
-#define ON 1
 header_type meta_t {
 	fields {
-		// ethernet information
 		eth_sa:48;		// eth src addr
 		eth_da:48;		// eth des addr
-		// ip information
         ipv4_sa : 32;	// ipv4 src addr
         ipv4_da : 32;	// ipv4 des addr
-		// tcp information
         tcp_sp : 16;	// tcp src port
         tcp_dp : 16;	// tcp des port
-        tcp_length : 16;	// tcp packet length
-		tcp_ack:1;		// ack bit
-		// tcp_psh:1;		// push bit
-		// tcp_rst:1;		// reset bit
-		tcp_syn:1;		// sync bit
-		// tcp_fin:1;		// finish bit
-		tcp_seqNo:32;	// tcp seq no.
-		// tcp_h1seq:32;	// 
-		// tcp_seqOffset:32;
-		tcp_ackNo:32;
-		// tcp_h2seq:32;
-		// tcp_ackOffset:32;
-		
-		// forward information
-		reply_type:4;	// 0: drop // 1: syn+ack back to h1 // 02: syn to h2 // 03: send h2 ack // 04: resubmit // 05: forward the packet as normal  
         nhop_ipv4 : 32;	// ipv4 next hop
-        // if_ipv4_addr : 32;
-        // if_mac_addr : 48;
-        // is_ext_if : 1;
+        if_ipv4_addr : 32;
+        if_mac_addr : 48;
+        is_ext_if : 1;
+        tcpLength : 16;	// tcp packet length
         in_port : 8;	// in port (of switch)
 		out_port:8;		// out port (of switch)
 	
-		// syn meter result (3 colors)
-		syn_meter_result : 2;	// METER_COLOR_RED, METER_COLOR_YELLOW, METER_COLOR_GREEN
-		syn_proxy_status : 1;	// 0 for OFF, 1 for ON
+		reply_type:4;	// 0: drop // 1: syn+ack back to h1 // 02: syn to h2 // 03: send h2 ack // 04: resubmit // 05: forward the packet as normal  
+		tcp_ack:1;		// ack bit
+		tcp_psh:1;		// push bit
+		tcp_rst:1;		// reset bit
+		tcp_syn:1;		// sync bit
+		tcp_fin:1;		// finish bit
+		tcp_seqNo:32;	// tcp seq no.
+		tcp_h1seq:32;	// 
+		tcp_seqOffset:32;
+		tcp_ackNo:32;
+		tcp_h2seq:32;
+		tcp_ackOffset:32;
 		
-		// tcp_session_map_index :  13;
-		// dstip_pktcount_map_index: 13;
-		// tcp_session_id : 16;
+		tcp_session_map_index :  13;
+		dstip_pktcount_map_index: 13;
+		tcp_session_id : 16;
 		
-		// dstip_pktcount:32;// how many packets have been sent to this dst IP address	 
+		dstip_pktcount:32;// how many packets have been sent to this dst IP address	 
 	
-		// tcp_session_is_SYN: 8;// this session has sent a syn to switch
-		// tcp_session_is_ACK: 8;// this session has sent a ack to switchi
-		// tcp_session_h2_reply_sa:8;// h2 in this session has sent a sa to switch
+		tcp_session_is_SYN: 8;// this session has sent a syn to switch
+		tcp_session_is_ACK: 8;// this session has sent a ack to switchi
+		tcp_session_h2_reply_sa:8;// h2 in this session has sent a sa to switch
 	}
 
 }
@@ -231,96 +221,22 @@ header_type meta_t {
 metadata meta_t meta;
 /************METADATA ENDS*************/
 
-
-
-/***************REGISTERS**************/
-/****11 * 8192 byte = 88KB in total****/
-register syn_proxy_status {
-	width: 1;
-	instance_count : 0;
-}
-register tcp_session_is_SYN {
-	width : 8;
-	instance_count: 8192;
-}
-register tcp_session_is_ACK {
-	width : 8;
-	instance_count: 8192;
-}
-register tcp_session_h2_reply_sa{
-	width : 8;
-	instance_count: 8192;
-}
-
-register h1_seq{
-	width : 32;
-	instance_count: 8192;
-}
-
-register h2_seq{
-	width : 32;
-	instance_count: 8192;
-}
-
-register dstip_pktcount {
-	width : 32; 
-	instance_count: 8192;
-}
-/*************REGISTERS ENDS***********/
-
-
-action _no_op(){
-	no_op();
-}
-
-action _drop() {
-	drop();
-}
-
-/*******for syn_meter_table******/
-{
-	meter syn_meter {
-		type : packets;
-		static : syn_meter_table;
-		instance_count : 1;
-	}
-	action syn_meter_action() {
-		// update syn meter, get the result
-		execute_meter(syn_meter, 0, meta.syn_meter_result);
-		// turn on the switch of syn proxy if syn is too much (fast)
-		if(meta.syn_meter_result == METER_COLOR_RED) {
-			// i guess red color means large number of syn packets
-			register_write(syn_proxy_status, 0, ON);
-		}
-	}
-	table syn_meter_table {
-		reads {
-			meta.tcp_syn : exact;
-		}
-		actions {
-			_no_op;
-			syn_meter_action;
-		}
-	}
+field_list l3_hash_fields {
+    ipv4.srcAddr;   
+	ipv4.dstAddr;
+	ipv4.protocol;
+	tcp.srcPort;	
+	tcp.dstPort;
 }
 
 // 5-tuple hash
-{
-	field_list l3_hash_fields {
-		ipv4.srcAddr;   
-		ipv4.dstAddr;
-		ipv4.protocol;
-		tcp.srcPort;	
-		tcp.dstPort;
+field_list_calculation tcp_session_map_hash {
+	input {
+		l3_hash_fields;
 	}
-	field_list_calculation tcp_session_map_hash {
-		input {
-			l3_hash_fields;
-		}
-		algorithm: crc16;
-		output_width: 13;	// is 8192 enough ?
+	algorithm: crc16;
+	output_width: 13;	// is 8192 enough ?
 
-	}
 }
 
 field_list reverse_l3_hash_fields {
@@ -358,6 +274,41 @@ field_list resubmit_FL {
 	standard_metadata;
 	meta;	
 	
+}
+
+/***************REGISTERS**************/
+/****11 * 8192 byte = 88KB in total****/
+register tcp_session_is_SYN {
+	width : 8;
+	instance_count: 8192;
+}
+register tcp_session_is_ACK {
+	width : 8;
+	instance_count: 8192;
+}
+register tcp_session_h2_reply_sa{
+	width : 8;
+	instance_count: 8192;
+}
+
+register h1_seq{
+	width : 32;
+	instance_count: 8192;
+}
+
+register h2_seq{
+	width : 32;
+	instance_count: 8192;
+}
+
+register dstip_pktcount {
+	width : 32; 
+	instance_count: 8192;
+}
+/*************REGISTERS ENDS***********/
+
+action _drop() {
+	drop();
 }
 
 //************************************for session_check table************************************
@@ -653,56 +604,49 @@ table forward_table{
 }
 
 control ingress {
-	// first count syn packets
-	apply(syn_meter_table);
-	register_read(meta.syn_proxy_status, syn_proxy_status, 0);
-	if(meta.syn_proxy_status == ON){
-		// syn proxy on
-		apply();
+	apply(session_check);
+	if (meta.tcp_session_is_SYN == 0 and meta.tcp_session_is_ACK == 0 and meta.tcp_session_h2_reply_sa ==0)	
+	{
+		if (meta.tcp_syn == 1 and meta.tcp_ack == 0)
+		{
+			apply(session_init_table);
+		}
 	}
-	// apply(session_check);
-	// if (meta.tcp_session_is_SYN == 0 and meta.tcp_session_is_ACK == 0 and meta.tcp_session_h2_reply_sa ==0)	
-	// {
-	// 	if (meta.tcp_syn == 1 and meta.tcp_ack == 0)
-	// 	{
-	// 		apply(session_init_table);
-	// 	}
-	// }
-	// else if (meta.tcp_session_is_SYN == 1 and meta.tcp_session_is_ACK == 0 and meta.tcp_session_h2_reply_sa == 0)
-	// {
-	// 	if (meta.tcp_syn == 0 and meta.tcp_ack == 1)
-	// 	{
-	// 		apply(session_complete_table);
-	// 	}
-	// }
-	// else if (meta.tcp_session_is_SYN == 1 and meta.tcp_session_is_ACK == 1 and meta.tcp_session_h2_reply_sa == 0)
-	// {
-	// 	if (meta.in_port == 2 )//expandability will be too poor
-	// 	{
-	// 		apply(relay_session_table); //check if it is syn/ack and change the register 
-	// 	}	
-	// 	else
-	// 	{
-	// 		//set the reply_type to let forward_table directly resubmit 
-	// 		//apply(inbound_tranformation_table);
-	// 		apply(handle_resubmit_table);
-	// 	}
-	// }
-	// else 
-	// {
-	// 	if (meta.in_port == 2 )
-	// 	{
-	// 		apply(outbound_tran_table);
-	// 	}
-	// 	else if	(meta.in_port == 1)
-	// 	{
-	// 		apply(inbound_tran_table);
-	// 	}
-	// 	apply(forward_normal_table);
+	else if (meta.tcp_session_is_SYN == 1 and meta.tcp_session_is_ACK == 0 and meta.tcp_session_h2_reply_sa == 0)
+	{
+		if (meta.tcp_syn == 0 and meta.tcp_ack == 1)
+		{
+			apply(session_complete_table);
+		}
+	}
+	else if (meta.tcp_session_is_SYN == 1 and meta.tcp_session_is_ACK == 1 and meta.tcp_session_h2_reply_sa == 0)
+	{
+		if (meta.in_port == 2 )//expandability will be too poor
+		{
+			apply(relay_session_table); //check if it is syn/ack and change the register 
+		}	
+		else
+		{
+			//set the reply_type to let forward_table directly resubmit 
+			//apply(inbound_tranformation_table);
+			apply(handle_resubmit_table);
+		}
+	}
+	else 
+	{
+		if (meta.in_port == 2 )
+		{
+			apply(outbound_tran_table);
+		}
+		else if	(meta.in_port == 1)
+		{
+			apply(inbound_tran_table);
+		}
+		apply(forward_normal_table);
 	
-	// }
+	}
 
-	// apply(forward_table);	
+	apply(forward_table);	
 }
 
 control egress {
