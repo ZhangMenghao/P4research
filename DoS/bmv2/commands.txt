@@ -1,21 +1,34 @@
-table_set_default session_check _drop
-table_set_default session_init_table init_session
-table_set_default session_complete_table complete_session
-table_set_default handle_resubmit_table set_resubmit
-table_set_default relay_session_table relay_session
-table_set_default forward_normal_table _drop
+table_set_default syn_meter_table syn_meter_action
+table_set_default turn_on_proxy_table turn_on_proxy
+table_set_default turn_off_proxy_table ture_off_proxy
+table_set_default eight_bit_index_select_table eight_bit_index_select
+table_set_default calculate_seq_num_table calculate_seq_num
+table_set_default reply_sa_table set_reply_sa
+table_set_default confirm_connection_table confirm_connection
+table_set_default no_syn_proxy_table no_syn_proxy_action
+table_set_default insert_connection_table insert_connection
+table_set_default send_to_cpu do_cpu_encap
+
+
+table_set_default valid_connection_from_server_table _no_op
+table_set_default syn_proxy_forward_table syn_proxy_forward_drop
+table_set_default ipv4_lpm_table _drop
 table_set_default forward_table _drop
-table_set_default outbound_tran_table outbound_transformation
-table_set_default inbound_tran_table inbound_transformation
+table_set_default send_frame _drop
 
-table_add session_check lookup_session_map 1 =>
-table_add session_check lookup_session_map_reverse 2 =>
 
-table_add forward_normal_table set_forward_normal 1 => 2
-table_add forward_normal_table set_forward_normal 2 => 1
+table_add syn_proxy_forward_table syn_proxy_forward_drop 0 =>
+table_add syn_proxy_forward_table syn_proxy_forward_reply_client_sa 1 =>
+table_add syn_proxy_forward_table syn_proxy_forward_connect_with_server 2 =>
+table_add syn_proxy_forward_table syn_proxy_forward_open_window 3 =>
+table_add syn_proxy_forward_table syn_proxy_forward_change_seq_offset 4 =>
+table_add syn_proxy_forward_table syn_proxy_forward_normally 5 =>
 
-table_add forward_table sendback_sa  1  => 
-table_add forward_table sendh2syn   2  => 2
-table_add forward_table sendh2ack   3  => 
-table_add forward_table _resubmit   4  => 
-table_add forward_table forward_normal 5 => 
+table_add ipv4_lpm_table set_nhop 11.0.0.0/24 => 11.0.0.1 1
+table_add ipv4_lpm_table set_nhop 10.0.0.0/24 => 10.0.0.1 2
+
+table_add forward_table set_dmac 11.0.0.1 => 00:00:00:00:00:01
+table_add forward_table set_dmac 10.0.0.1 => 00:00:00:00:00:02
+
+table_add send_frame rewrite_mac 1 => 00:00:00:00:00:01
+table_add send_frame rewrite_mac 2 => 00:00:00:00:00:02
