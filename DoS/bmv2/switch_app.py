@@ -61,7 +61,7 @@ def process_cpu_pkt(p):
                      %s %s %d %d %d" %\
                     (ip_hdr.dst, ip_hdr.src, tcp_hdr.dport, tcp_hdr.sport, tcp_hdr.flags))
         client_confirmed_connections.append(connection) 
-    else if reverse_connection in connections:
+    elif reverse_connection in connections:
         # means this is syn+ack packet from server
         offset = int(p_str[9:40])
         send_to_CLI("table_add valid_connection_table set_passthrough_syn_proxy_from_server \
