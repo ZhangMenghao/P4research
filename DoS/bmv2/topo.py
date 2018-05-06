@@ -54,14 +54,13 @@ class MyTopo(Topo):
                                 pcap_dump = True)
 #internal host
         h1 = self.addHost('h1',
-                          ip = "10.0.0.10",
-                          mac = "00:04:00:00:00:10")
+                          ip = "11.0.0.10",
+                          mac = "00:00:00:00:00:10")
         self.addLink(h1,switch)
 #external host
         h2 = self.addHost('h2',
-          #                ip = "192.168.0.10",
-                           ip = "10.0.0.20",
-                           mac = "00:05:00:00:00:10")
+                           ip = "10.0.0.10",
+                           mac = "00:00:00:00:00:20")
         self.addLink(h2, switch)
                     
 
@@ -78,17 +77,17 @@ def main():
                   controller = None )
     net.start()
 
-    sw_macs = ["00:aa:bb:00:00:04", "00:aa:bb:00:00:05"]
+    sw_macs = ["00:00:00:00:00:01", "00:00:00:00:00:02"]
     
-    sw_addrs = ["10.0.0.1", "192.168.0.1"]
+    sw_addrs = ["10.0.0.1", "11.0.0.1"]
     
-    h_macs = ["00:05:00:00:00:10","00:04:00:00:00:10"]
-    h_addrs = ['10.0.0.20','10.0.0.10']
+    # h_macs = ["00:05:00:00:00:10","00:04:00:00:00:10"]
+    # h_addrs = ['10.0.0.20','10.0.0.10']
     
     for n in xrange(2):
         h = net.get('h%d' %(n+1))
-        h.setARP(h_addrs[n], h_macs[n])
-  #      h.setDefaultRoute("dev eth0 via %s" % sw_addrs[n])
+        h.setARP(sw_addrs[n], sw_macs[n])
+        h.setDefaultRoute("dev eth0 via %s" % sw_addrs[n])
     
     for n in xrange(2):
         h = net.get('h%d' % (n+1))
@@ -96,7 +95,7 @@ def main():
 
     sleep(1)
     
-    cmd = [args.cli,"--json",  args.json, "--thrift-port",str(args.thrift_port)]
+    cmd = [args.cli, args.json, str(args.thrift_port)]
     with open("commands.txt", "r") as f:
         print " ".join(cmd)
         try:

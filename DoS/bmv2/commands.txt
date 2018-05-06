@@ -16,6 +16,7 @@ table_set_default ipv4_lpm_table _drop
 table_set_default forward_table _drop
 table_set_default send_frame _drop
 
+table_add eight_bit_index_select_table eight_bit_index_select => 0x3c000000 26 0xf 0
 
 table_add syn_proxy_forward_table syn_proxy_forward_drop 0 =>
 table_add syn_proxy_forward_table syn_proxy_forward_reply_client_sa 1 =>
@@ -24,11 +25,14 @@ table_add syn_proxy_forward_table syn_proxy_forward_open_window 3 =>
 table_add syn_proxy_forward_table syn_proxy_forward_change_seq_offset 4 =>
 table_add syn_proxy_forward_table syn_proxy_forward_normally 5 =>
 
-table_add ipv4_lpm_table set_nhop 11.0.0.0/24 => 11.0.0.1 1
-table_add ipv4_lpm_table set_nhop 10.0.0.0/24 => 10.0.0.1 2
+table_add ipv4_lpm_table set_nhop 10.0.0.10/32 => 10.0.0.10 1
+table_add ipv4_lpm_table set_nhop 11.0.0.10/32 => 11.0.0.10 2
 
-table_add forward_table set_dmac 11.0.0.1 => 00:00:00:00:00:01
-table_add forward_table set_dmac 10.0.0.1 => 00:00:00:00:00:02
+table_add forward_table set_dmac 10.0.0.1 => 00:00:00:00:00:10
+table_add forward_table set_dmac 11.0.0.1 => 00:00:00:00:00:20
 
 table_add send_frame rewrite_mac 1 => 00:00:00:00:00:01
 table_add send_frame rewrite_mac 2 => 00:00:00:00:00:02
+
+mirroring_add 0 10
+mirroring_add 1 11
