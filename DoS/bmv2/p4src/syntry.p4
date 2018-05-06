@@ -216,22 +216,13 @@ header_type meta_t {
         tcp_sp : 16;	// tcp src port
         tcp_dp : 16;	// tcp des port
         tcp_length : 16;	// tcp packet length
-		// tcp_flags : 6;	// tcp flags: urg, ack, psh, rst, syn, fin	
-		// tcp_h1seq:32;	// 
-		// tcp_seqOffset:32;
 		tcp_ackNo:32;
 		tcp_seqNo:32;
-		// tcp_h2seq:32;
-		// tcp_ackOffset:32;
 		
 		// forward information
 		forward_strategy : 4;	// 0: drop // 1: syn+ack back to h1 // 02: syn to h2 // 03: send h2 ack // 04: resubmit // 05: forward the packet as normal  
         nhop_ipv4 : 32;	// ipv4 next hop
-        // if_ipv4_addr : 32;
-        // if_mac_addr : 48;
-        // is_ext_if : 1;
         in_port : 8;	// in port (of switch)
-		// out_port :8;		// out port (of switch)
 	
 		// syn meter result (3 colors)
 		syn_meter_result : 2;	// METER_COLOR_RED, METER_COLOR_YELLOW, METER_COLOR_GREEN
@@ -248,16 +239,6 @@ header_type meta_t {
 
 		// seq# offset
 		seq_no_offset : 32;
-		
-		// tcp_session_map_index :  13;
-		// dstip_pktcount_map_index: 13;
-		// tcp_session_id : 16;
-		
-		// dstip_pktcount:32;// how many packets have been sent to this dst IP address	 
-	
-		// tcp_session_is_SYN: 8;// this session has sent a syn to switch
-		// tcp_session_is_ACK: 8;// this session has sent a ack to switchi
-		// tcp_session_h2_reply_sa:8;// h2 in this session has sent a sa to switch
 	}
 
 }
