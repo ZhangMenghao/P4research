@@ -21,8 +21,8 @@ source $THIS_DIR/../../../env.sh
 P4C_BM_SCRIPT=$P4C_BM_PATH/p4c_bm/__main__.py
 
 SWITCH_PATH=$BMV2_PATH/targets/simple_switch/simple_switch
-
-CLI_PATH=$BMV2_PATH/tools/runtime_CLI.py
+CLI_PATH=$BMV2_PATH/targets/simple_switch/sswitch_CLI
+# CLI_PATH=$BMV2_PATH/tools/runtime_CLI.py
 
 # create CPU port
 intf0="cpu-veth-0"
@@ -51,4 +51,4 @@ sudo PYTHONPATH=$PYTHONPATH:$BMV2_PATH/mininet/ python topo.py \
     --behavioral-exe $SWITCH_PATH \
     --json $TARGET_JSON \
     --cli $CLI_PATH \
-	--thrift-port 22223
+	--thrift-port 22222

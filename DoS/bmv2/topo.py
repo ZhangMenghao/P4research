@@ -18,7 +18,7 @@ from mininet.net import Mininet
 from mininet.topo import Topo
 from mininet.log import setLogLevel, info
 from mininet.cli import CLI
-from mininet.link import TCLink
+from mininet.link import TCLink, Intf
 
 from p4_mininet import P4Switch, P4Host
 
@@ -54,12 +54,12 @@ class MyTopo(Topo):
                                 pcap_dump = True)
 #internal host
         h1 = self.addHost('h1',
-                          ip = "11.0.0.10",
+                          ip = "10.0.0.10",
                           mac = "00:00:00:00:00:10")
         self.addLink(h1,switch)
 #external host
         h2 = self.addHost('h2',
-                           ip = "10.0.0.10",
+                           ip = "11.0.0.10",
                            mac = "00:00:00:00:00:20")
         self.addLink(h2, switch)
                     
@@ -75,7 +75,13 @@ def main():
                   host = P4Host,
                   switch = P4Switch,
                   controller = None )
+    
+    
+    cpu_intf = Intf("cpu-veth-1", net.get('s1'), 11)
+    
+    
     net.start()
+
 
     sw_macs = ["00:00:00:00:00:01", "00:00:00:00:00:02"]
     
@@ -85,12 +91,12 @@ def main():
     # h_addrs = ['10.0.0.20','10.0.0.10']
     
     for n in xrange(2):
-        h = net.get('h%d' %(n+1))
+        h = net.get('h%d' %(n + 1))
         h.setARP(sw_addrs[n], sw_macs[n])
         h.setDefaultRoute("dev eth0 via %s" % sw_addrs[n])
     
     for n in xrange(2):
-        h = net.get('h%d' % (n+1))
+        h = net.get('h%d' % (n + 1))
         h.describe()
 
     sleep(1)
