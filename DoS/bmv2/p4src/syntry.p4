@@ -24,6 +24,9 @@
 #define METER_COLOR_GREEN 0
 #define METER_COLOR_YELLOW 1
 #define METER_COLOR_RED 2
+// for direction judgement
+#define FROM_CLIENT 0
+#define FROM_SERVER 1
 
 //********
 //********HEADERS********
@@ -77,6 +80,7 @@ header_type tcp_t {
         window : 16;
         checksum : 16;
         urgentPtr : 16;
+		optional : *;
     }
 }
 
@@ -228,11 +232,6 @@ header_type meta_t {
 		// syn meter result (3 colors)
 		syn_meter_result : 2;	// METER_COLOR_RED, METER_COLOR_YELLOW, METER_COLOR_GREEN
 		syn_proxy_status : 1;	// 0 for PROXY_OFF, 1 for PROXY_ON
-		// 8 bits index for seq# selection in syn+ack
-		eight_bit_index : 8;
-		reverse_eight_bit_index : 8;
-		// seq num (hash-generated) in syn+ack
-		sa_seq_num : 32;
 
 		// counter of syn packets and valid ack packets
 		syn_counter_val : 32;
@@ -240,6 +239,12 @@ header_type meta_t {
 
 		// seq# offset
 		seq_no_offset : 32;
+
+		// for syn-cookie
+		cookie_key1 : 32;
+		cookie_key2 : 32;
+		cookie_val1 : 32;
+		cookie_val2 : 32;
 	}
 
 }
@@ -260,10 +265,6 @@ register syn_proxy_status {
 	width : 1;
 	instance_count : 1;
 }
-register sa_seq_num_pool {
-	width : 32;
-	instance_count : 256;	//8 bit field
-}
 register syn_counter {
 	// type : packets;
 	// static : confirm_connection_table;
@@ -276,14 +277,34 @@ register valid_ack_counter {
 	width : 32;
 	instance_count : 1;
 }
+register syn_cookie_pool {
+	width : 32;
+	instance_count : 8192;	//13 bits
+}
 //********REGISTERS ENDS********
 
+
+field_list tcp_five_tuple_list{
+	ipv4.srcAddr;
+	ipv4.dstAddr;
+	tcp.srcPort;
+	tcp.dstPort;
+	ipv4.protocol;
+}
+field_list_calculation tcp_five_tuple_hash {
+	input {
+		tcp_five_tuple_list;
+	}
+	algorithm : csum16;
+	output_width : 13;
+}
 
 action _no_op(){
 	no_op();
 }
 
 action _drop() {
+	modify_field(ipv4.dstAddr, 0);
 	drop();
 }
 
@@ -324,33 +345,115 @@ action _drop() {
 // }
 //********for turn_off_proxy_table********
 // {
-	action ture_off_proxy() {
+	action turn_off_proxy() {
 		register_write(syn_proxy_status, 0, PROXY_OFF);
 		// read syn proxy status into metadata
 		modify_field(meta.syn_proxy_status, PROXY_OFF);
 	}
 	table turn_off_proxy_table {
 		actions {
-			ture_off_proxy;
+			turn_off_proxy;
 		}
 	}
 // }
-//********for eight_bit_index_select_table********
+
+
+//********for calculate_syn_cookie_table********
 // {
-	action eight_bit_index_select(ip_mask, ip_e_pos, port_mask, port_e_pos) {
-		// masks must be 4 bits in a row
-		// e.g. 00111100 00000000 00000000 00000000 (0x3c000000)
-		modify_field(meta.eight_bit_index, 
-				(((ipv4.srcAddr & ip_mask) >> ip_e_pos) << 4) | ((tcp.srcPort & port_mask) >> port_e_pos));
-		modify_field(meta.reverse_eight_bit_index, 
-				(((ipv4.dstAddr & ip_mask) >> ip_e_pos) << 4) | ((tcp.dstPort & port_mask) >> port_e_pos));
+	field_list syn_cookie_key1_list{
+		ipv4.srcAddr;
+		ipv4.dstAddr;
+		tcp.srcPort;
+		tcp.dstPort;
+		ipv4.protocol;
+		meta.key1;
 	}
-	table eight_bit_index_select_table {
+	field_list_calculation syn_cookie_key1_calculation {
+		input {
+			syn_cookie_key1_list;
+		}
+		algorithm : crc32;
+		output_width : 32;
+	}
+
+
+	field_list syn_cookie_key2_list{
+		ipv4.srcAddr;
+		ipv4.dstAddr;
+		tcp.srcPort;
+		tcp.dstPort;
+		ipv4.protocol;
+		meta.key2;
+	}
+	field_list_calculation syn_cookie_key2_calculation {
+		input {
+			syn_cookie_key2_list;
+		}
+		algorithm : crc32;
+		output_width : 32;
+	}
+
+
+	field_list syn_cookie_key1_reverse_list{
+		ipv4.dstAddr;
+		ipv4.srcAddr;
+		tcp.dstPort;
+		tcp.srcPort;
+		ipv4.protocol;
+		meta.key1;
+	}
+	field_list_calculation syn_cookie_key1_reverse_calculation {
+		input {
+			syn_cookie_key1_reverse_list;
+		}
+		algorithm : crc32;
+		output_width : 32;
+	}
+
+
+	field_list syn_cookie_key2_reverse_list{
+		ipv4.dstAddr;
+		ipv4.srcAddr;
+		tcp.dstPort;
+		tcp.srcPort;
+		ipv4.protocol;
+		meta.key2;
+	}
+	field_list_calculation syn_cookie_key2_reverse_calculation {
+		input {
+			syn_cookie_key2_reverse_list;
+		}
+		algorithm : crc32;
+		output_width : 32;
+	}
+	// use a simpler version of syn-cookie
+	// timestamp(for connection timeout), MSS(for ack packet reconstruction) not implemented
+	action calculate_syn_cookie_from_client(key1, key2){
+		modify_field(meta.cookie_key1, key1);
+		modify_field(meta.cookie_key2, key2);
+		modify_field_with_hash_based_offset(meta.cookie_val1, 0, syn_cookie_key1_calculation, 32);
+		modify_field_with_hash_based_offset(meta.cookie_val2, 0, syn_cookie_key2_calculation, 32);
+	}
+	action calculate_syn_cookie_from_server(key1, key2){
+		modify_field(meta.cookie_key1, key1);
+		modify_field(meta.cookie_key2, key2);
+		modify_field_with_hash_based_offset(meta.cookie_val1, 0, syn_cookie_key1_reverse_calculation, 32);
+		modify_field_with_hash_based_offset(meta.cookie_val2, 0, syn_cookie_key2_reverse_calculation, 32);		
+	}
+	table calculate_syn_cookie_table {
+		reads {
+			// for syn & ack, it is definitely from client
+			// syn+ack comes from server
+			tcp.flags : ternary;
+		}
 		actions {
-			eight_bit_index_select;
+			_drop;
+			calculate_syn_cookie_from_client;
+			calculate_syn_cookie_from_server;
 		}
 	}
 // }
+
 //********for valid_connection_from_server_table********
 // {
 	action set_passthrough_syn_proxy_from_server(seq_no_offset) {
@@ -370,7 +473,7 @@ action _drop() {
 		// update seq# offset in flow table
 		clone_ingress_pkt_to_egress(CLONE_UPDATE_OFFSET, copy_to_cpu_fields);
 	}
-	action set_passthrough_syn_proxy_from_client(seq_no_offset) {
+	action set_passthrough_syn_proxy_packet_source(seq_no_offset) {
 		modify_field(meta.forward_strategy, FORWARD_CHANGE_ACK_OFFSET);
 		modify_field(meta.seq_no_offset, seq_no_offset);
 	}
@@ -384,23 +487,9 @@ action _drop() {
 		}
 		actions {
 			_no_op;
-			set_passthrough_syn_proxy_from_client;
+			set_passthrough_syn_proxy_packet_source;
 			set_passthrough_syn_proxy_from_server;
 			set_passthrough_syn_proxy_from_server_for_new_connection;
-		}
-	}
-// }
-//********for calculate_seq_num_table********
-// {
-	action calculate_seq_num() {
-		// select syn+ack packet seq#
-		// TODO: 如何更新pool
-		// register_read(meta.sa_seq_num, sa_seq_num_pool, meta.eight_bit_index);
-		modify_field(meta.sa_seq_num, meta.eight_bit_index);
-	}
-	table calculate_seq_num_table {
-		actions {
-			calculate_seq_num;
 		}
 	}
 // }
@@ -409,7 +498,6 @@ action _drop() {
 	action set_reply_sa() {
 		modify_field(meta.forward_strategy, FORWARD_REPLY_CLIENT_SA);
 		// count: syn packet
-		// count(syn_counter, 0);
 		register_read(meta.syn_counter_val, syn_counter, 0);
 		add_to_field(meta.syn_counter_val, 1);
 		register_write(syn_counter, 0 , meta.syn_counter_val);
@@ -484,9 +572,8 @@ action _drop() {
 //********for syn_proxy_forward_table********
 // {
 	action syn_proxy_forward_drop(){
-		drop();
-		modify_field(ipv4.identification, 0xffff);
 		modify_field(ipv4.dstAddr, 0);
+		drop();
 	}
 	action syn_proxy_forward_reply_client_sa(){		
 		// reply client with syn+ack and a certain seq no, and window size 0
@@ -622,13 +709,22 @@ control ingress {
 		/*if(meta.syn_proxy_status == PROXY_ON){*/
 			// syn proxy on
 			// no need for session check since we use stateless SYN-cookie method
-			if(tcp.flags & TCP_FLAG_ACK == TCP_FLAG_ACK or tcp.flags & TCP_FLAG_SYN == TCP_FLAG_SYN){
-				apply(calculate_seq_num_table);
-				if(tcp.flags & TCP_FLAG_ACK == 0){
+
+			// whether the packet is an ACK, SYN or SYN+ACK
+			// syn-cookie will be used
+			// it must be calculated.
+			// if it is not one of the three types above, it will be dropped in this table
+			apply(calculate_syn_cookie_table);
+
+			if(tcp_flags & (TCP_FLAG_ACK | TCP_FLAG_SYN) == (TCP_FLAG_ACK | TCP_FLAG_SYN)){
+				// syn+ack
+				 
+			} else{
+				if(tcp_flags & TCP_FLAG_ACK == TCP_FLAG_ACK){
 					// has syn but no ack
 					// send back syn+ack with special seq#
 					apply(reply_sa_table);
-				} else if(tcp.flags & TCP_FLAG_SYN == 0){
+				} else if(tcp_flags & TCP_FLAG_SYN == TCP_FLAG_SYN) {
 					// has ack but no syn
 					// make sure ack# is right
 					if(tcp.ackNo == meta.sa_seq_num + 1){
