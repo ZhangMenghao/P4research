@@ -231,11 +231,7 @@ header_type meta_t {
 		syn_meter_result : 2;	// METER_COLOR_RED, METER_COLOR_YELLOW, METER_COLOR_GREEN
 		syn_proxy_status : 1;	// 0 for PROXY_OFF, 1 for PROXY_ON
 
-		// counter of syn packets and valid ack packets
-		syn_counter_val : 32;
-		valid_ack_counter_val : 32;
-
-		// seq# offset
+		// seq# offset  
 		seq_no_offset : 32;
 
 		// for syn-cookie
@@ -264,20 +260,16 @@ field_list copy_to_cpu_fields {
 
 //********REGISTERS********
 //********11 * 8192 byte = 88KB in total********
-register syn_proxy_status {
-	width : 1;
+counter syn_counter {
+	type : packets;
+	static : reply_sa_table;
+	// width : 32; 
 	instance_count : 1;
 }
-register syn_counter {
-	// type : packets;
-	// static : confirm_connection_table;
-	width : 32; 
-	instance_count : 1;
-}
-register valid_ack_counter {
-	// type : packets;
-	// static : valid_connection_table;
-	width : 32;
+counter valid_ack_counter {
+	type : packets;
+	static : confirm_connection_table;
+	// width : 32;
 	instance_count : 1;
 }
 register syn_cookie_pool {
@@ -307,6 +299,7 @@ action _no_op(){
 }
 
 action _drop() {
+	modify_field(meta.to_drop, TRUE);
 	modify_field(ipv4.dstAddr, 0);
 	drop();
 }
@@ -333,34 +326,6 @@ action _drop() {
 		}
 	}
 // }
-//********for turn_on_proxy_table********
-// {
-	action turn_on_proxy() {
-		register_write(syn_proxy_status, 0, PROXY_ON);
-		// read syn proxy status into metadata
-		modify_field(meta.syn_proxy_status, PROXY_ON);
-	}
-	table turn_on_proxy_table {
-		actions {
-			turn_on_proxy;
-		}
-	}
-// }
-//********for turn_off_proxy_table********
-// {
-	action turn_off_proxy() {
-		register_write(syn_proxy_status, 0, PROXY_OFF);
-		// read syn proxy status into metadata
-		modify_field(meta.syn_proxy_status, PROXY_OFF);
-	}
-	table turn_off_proxy_table {
-		actions {
-			turn_off_proxy;
-		}
-	}
-// }
-
-
 //********for calculate_syn_cookie_table********
 // {
 	field_list syn_cookie_key1_list{
@@ -456,21 +421,37 @@ action _drop() {
 		}
 	}
 // }
+//********for check_proxy_status_table********
+// {
+	action turn_on_proxy() {
+		modify_field(meta.syn_proxy_status, PROXY_ON);
 
+	}
+	action turn_off_proxy() {
+		modify_field(meta.syn_proxy_status, PROXY_OFF);
+	}
+	table check_proxy_status_table {
+		actions {
+			turn_on_proxy;
+			turn_off_proxy;
+			_no_op;
+		}
+	}
+// }
 //********for valid_connection_from_server_table********
 // {
 	action set_passthrough_syn_proxy_from_server(seq_no_offset) {
+		modify_field(meta.to_drop, FALSE);
 		// modify_field(meta.seq_no_offset, seq_no_offset);
 		// TODO: by default, we reckon tcp.seq_no > cookie_val
 		subtract_from_field(tcp.seq_no, seq_no_offset);
-		modify_field(meta.to_drop, FALSE);
 
 	}
-	action set_passthrough_syn_proxy_packet_source(seq_no_offset) {
+	action set_passthrough_syn_proxy_from_client(seq_no_offset) {
+		modify_field(meta.to_drop, FALSE);
 		// modify_field(meta.seq_no_offset, seq_no_offset);
 		// TODO: by default, we reckon tcp.seq_no > cookie_val
-		add_to_field(tcp.ack_no, meta.seq_no_offset);
-		modify_field(meta.to_drop, FALSE);
+		add_to_field(tcp.ack_no, seq_no_offset);
 	}
 	table valid_connection_table {
 		reads {
@@ -481,7 +462,7 @@ action _drop() {
 		}
 		actions {
 			_no_op;
-			set_passthrough_syn_proxy_packet_source;
+			set_passthrough_syn_proxy_from_client;
 			set_passthrough_syn_proxy_from_server;
 		}
 	}
@@ -527,7 +508,7 @@ action _drop() {
 // }
 //********for reply_sa_table********
 // {
-	action set_reply_sa() {		
+	action reply_sa() {		
 		modify_field(meta.to_drop, FALSE);
 		// reply client with syn+ack and a certain seq no, and window size 0
 		
@@ -555,13 +536,14 @@ action _drop() {
 		modify_field_with_hash_based_offset(meta.tcp_digest, 0, tcp_five_tuple_hash, 13);
 		register_write(syn_cookie_pool, meta.tcp_digest, (1 << 32) | meta.cookie_val1);
 		// count: syn packet
-		register_read(meta.syn_counter_val, syn_counter, 0);
-		add_to_field(meta.syn_counter_val, 1);
-		register_write(syn_counter, 0 , meta.syn_counter_val);
+		count(syn_counter, 0);
+		// register_read(meta.syn_counter_val, syn_counter, 0);
+		// add_to_field(meta.syn_counter_val, 1);
+		// register_write(syn_counter, 0 , meta.syn_counter_val);
 	}
 	table reply_sa_table {
 		actions {
-			set_reply_sa;
+			reply_sa;
 		}
 	}
 // }
@@ -577,9 +559,10 @@ action _drop() {
 		// set ack# 0 (optional)
 		modify_field(tcp.ack_no, 0);
 		// count: valid ack
-		register_read(meta.valid_ack_counter_val, valid_ack_counter, 0);
-		add_to_field(meta.valid_ack_counter_val, 1);
-		register_write(valid_ack_counter, 0 , meta.valid_ack_counter_val);
+		count(valid_ack_counter, 0);
+		// register_read(meta.valid_ack_counter_val, valid_ack_counter, 0);
+		// add_to_field(meta.valid_ack_counter_val, 1);
+		// register_write(valid_ack_counter, 0 , meta.valid_ack_counter_val);
 	}
 	table confirm_connection_table {
 		actions {
@@ -587,25 +570,10 @@ action _drop() {
 		}
 	}
 // }
-/*
-//********for check_syn_and_valid_ack_num_table******
-// {
-	action check_syn_and_valid_ack_num() {
-		// check the difference between
-		// the number of syn packets and the number of valid ack
-		register_read(meta.syn_counter_val, syn_counter, 0);
-		register_read(meta.valid_ack_counter_val, valid_ack_counter, 0);
-	}
-	table check_syn_and_valid_ack_num_table {
-		actions {
-			check_syn_and_valid_ack_num;
-		}
-	}
-// }
-*/
 //********for insert_connection_table********
 // {
 	action insert_connection() {
+		modify_field(meta.seq_no_offset, 0);
 		clone_ingress_pkt_to_egress(CPU_SESSION, copy_to_cpu_fields);
 	}
 	table insert_connection_table {
@@ -657,11 +625,6 @@ control ingress {
 	if(tcp.flags ^ TCP_FLAG_SYN == 0){
 		// only has syn
 		apply(syn_meter_table);
-		// turn on the switch of syn proxy if syn is too much (fast)
-		if(meta.syn_meter_result == METER_COLOR_RED) {
-			// i guess red color means large number of syn packets
-			apply(turn_on_proxy_table);
-		}
 	}
 	// check if this connection has been successfully established before
 	// if so, ignore syn proxy mechanism
@@ -669,6 +632,7 @@ control ingress {
 	if(meta.to_drop == TRUE){
 		// does not exist in valid_connection_table.
 		// check if syn proxy is on
+		apply(check_proxy_status_table);
 		/*if(meta.syn_proxy_status == PROXY_ON){*/
 			// syn proxy on
 			// no need for session check since we use stateless SYN-cookie method
@@ -703,10 +667,7 @@ control ingress {
 				apply(drop_table);
 			}
 			/*
-			// check the difference between
-			// the number of syn packets and the number of valid ack
-			// apply(check_syn_and_valid_ack_num_table);
-			
+			// abandoned!
 			// if the difference of the two is less than 1/8 of the smaller one
 			// we think that the number of syn pkts and valid ack pkts are roughly equal
 			// shutdown syn proxy
@@ -761,12 +722,12 @@ control ingress {
 //********for send_to_cpu********
 // {
 	action do_cpu_encap() {
-		// add_header seems useless 
+		// add_header does not work
 		// add_header(cpu_header);
 		// modify_field(cpu_header.destination, 0xff);
 		// modify_field(cpu_header.seq_no_offset, meta.seq_no_offset);
 		modify_field(ethernet.dstAddr, 0xffffffffffff);
-		modify_field(tcp.seq_no, 0xff0000000000 | meta.seq_no_offset);
+		modify_field(tcp.seq_no, meta.seq_no_offset);
 	}
 
 	table send_to_cpu {

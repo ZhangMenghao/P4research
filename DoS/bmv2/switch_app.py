@@ -51,46 +51,26 @@ def process_cpu_pkt(p):
     print "Packet received"
     print p2.summary()
     connection = (ip_hdr.src, ip_hdr.dst, tcp_hdr.sport, tcp_hdr.dport)
-    reverse_connection = (ip_hdr.dst, ip_hdr.src, tcp_hdr.dport, tcp_hdr.sport)
-    if connection not in connections and reverse_connection not in connections:
+    offset = int(tcp_hdr.seq)
+    if connection not in connections:
         print "Adding new items into flow table..."
-        # client to server rule for this mapping (no action data)
-        send_to_CLI("table_add valid_connection_table set_passthrough_syn_proxy_from_client \
-                     %s %s %d %d %s => 0 1" %\
-                    (ip_hdr.src, ip_hdr.dst, tcp_hdr.sport, tcp_hdr.dport, '0&&&0'))
-        # external to internal rule for this mapping
-        cmd_return = send_to_CLI("table_add valid_connection_table set_passthrough_syn_proxy_from_server_for_new_connection \
-                     %s %s %d %d %s => 0" %\
-                    (ip_hdr.dst, ip_hdr.src, tcp_hdr.dport, tcp_hdr.sport, '0x12&&&0x3f'))
-        pattern = re.compile(r"handle (\d+)")
-        match = pattern.search(cmd_return)
-        if(match):
-            handle = int(match.group(1))
-            # print 'handle num is %d' % handle
-            connections[connection] = handle
-        send_to_CLI("table_dump_entry valid_connection_table %d" % (handle - 1))
-
-    elif reverse_connection in connections:
-        # means this is syn+ack packet from server
-        offset = int(tcp_hdr.seq)
-        print 'offset: %d' % offset
+        # incoming packet should be syn+ack from server
+        # server to client rule for this mapping
         send_to_CLI("table_add valid_connection_table set_passthrough_syn_proxy_from_server \
-                     %s %s %d %d %s => %d 1" %\
-                    (ip_hdr.src, ip_hdr.dst, tcp_hdr.sport, tcp_hdr.dport, '0&&&0', offset))
+                     %s %s %d %d => %d" %\
+                    (ip_hdr.src, ip_hdr.dst, tcp_hdr.sport, tcp_hdr.dport, offset))
+        # client to server rule for this mapping
+        cmd_return = send_to_CLI("table_add valid_connection_table set_passthrough_syn_proxy_from_client \
+                     %s %s %d %d => %d" %\
+                    (ip_hdr.dst, ip_hdr.src, tcp_hdr.dport, tcp_hdr.sport, offset))
+        # pattern = re.compile(r"handle (\d+)")
+        # match = pattern.search(cmd_return)
+        # if(match):
+        #     handle = int(match.group(1))
+        #     # print 'handle num is %d' % handle
+        #     connections[connection] = handle
+        # send_to_CLI("table_dump_entry valid_connection_table %d" % (handle - 1))
 
-        send_to_CLI("table_delete valid_connection_table %d" %\
-                    (connections[reverse_connection]))
-
-        send_to_CLI("table_modify valid_connection_table set_passthrough_syn_proxy_from_client %d %d" %\
-                    (connections[reverse_connection] - 1, offset))
-
-
-        send_to_CLI("table_dump valid_connection_table")
-
-    # a little bit hacky, this essentially ensures that the packet we re-inject
-    # in the CPU iface will not be processed again by this method
-    # new_p = '\x00' + p_str[8:]
-    # sendp(new_p, iface="cpu-veth-0", verbose=0)
 
 def main():
     sniff(iface="cpu-veth-0", prn=lambda x: process_cpu_pkt(x))
