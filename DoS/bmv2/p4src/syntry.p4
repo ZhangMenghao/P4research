@@ -294,7 +294,7 @@ action _drop() {
 action lookup_session_map()
 {//from packet come in through port1
 	modify_field_with_hash_based_offset(meta.tcp_session_map_index,0,
-										tcp_session_map_hash, 13);
+										tcp_session_map_hash, 13);//five-tuples
 	modify_field_with_hash_based_offset(meta.dstip_pktcount_map_index,0,
 											dstip_map_hash,13);
 	
@@ -358,7 +358,7 @@ table session_check {
 //**************************for session_init_table*******************
 action init_session()
 {
-	modify_field(meta.reply_type,1);//1 means forward_table should return a SA to h1i
+	modify_field(meta.reply_type,1);//1 means forward_table should return a SA to h1
 
 	register_write(tcp_session_is_SYN, meta.tcp_session_map_index,
 					1);
@@ -366,7 +366,7 @@ action init_session()
 
 	register_write(tcp_session_h2_reply_sa, meta.tcp_session_map_index,0);
 
-	register_write(h1_seq, meta.tcp_session_map_index,meta.tcp_seqNo);
+	register_write(h1_seq, meta.tcp_session_map_index, meta.tcp_seqNo);
 }
 
 table session_init_table {
@@ -411,7 +411,7 @@ table handle_resubmit_table{
 action relay_session()
 {
 
-	modify_field(meta.reply_type,3);//not to drop  we should return a ack to h2 (don't forget to swap the ip and macs 
+	modify_field(meta.reply_type,3);//not to drop  we should return a ack to h2 (don't forget to swap the ip and mac)
 
 	register_write(tcp_session_is_SYN, meta.tcp_session_map_index,
 					1);
