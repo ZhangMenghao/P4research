@@ -2,14 +2,14 @@
 // for syn proxy
 #define PROXY_OFF 0
 #define PROXY_ON 1
-// for forward strategy
-#define FORWARD_DROP_PKT 0	// drop packet
-#define FORWARD_REPLY_CLIENT_SA 1	// reply client with syn+ack and a certain seq no, and window size 0
-#define FORWARD_CONNECT_WITH_SERVER 2	// handshake with client finished, start establishing connection with server
-#define FORWARD_OPEN_WINDOW 3	// syn+ack from server received. connection established. forward this packet to client
-#define FORWARD_CHANGE_SEQ_OFFSET 4 // it is a packet sent by server to client,an offset needs to be added
-#define FORWARD_CHANGE_ACK_OFFSET 5 // it is a packet sent by server to client,an offset needs to be added
-#define FORWARD_NORMALLY 6	// forward normally
+// // for forward strategy
+// #define FORWARD_DROP_PKT 0	// drop packet
+// #define FORWARD_REPLY_CLIENT_SA 1	// reply client with syn+ack and a certain seq no, and window size 0
+// #define FORWARD_CONNECT_WITH_SERVER 2	// handshake with client finished, start establishing connection with server
+// #define FORWARD_OPEN_WINDOW 3	// syn+ack from server received. connection established. forward this packet to client
+// #define FORWARD_CHANGE_SEQ_OFFSET 4 // it is a packet sent by server to client,an offset needs to be added
+// #define FORWARD_CHANGE_ACK_OFFSET 5 // it is a packet sent by server to client,an offset needs to be added
+// #define FORWARD_NORMALLY 6	// forward normally
 // for tcp flags
 #define TCP_FLAG_URG 0x20
 #define TCP_FLAG_ACK 0x10
@@ -18,15 +18,15 @@
 #define TCP_FLAG_SYN 0x02
 #define TCP_FLAG_FIN 0x01
 // for clone packets
-#define CLONE_NEW_CONNECTION 0
-#define CLONE_UPDATE_OFFSET 1
+#define CPU_SESSION 500
 // for meter
 #define METER_COLOR_GREEN 0
 #define METER_COLOR_YELLOW 1
 #define METER_COLOR_RED 2
-// for direction judgement
-#define FROM_CLIENT 0
-#define FROM_SERVER 1
+
+#define FALSE 0
+#define TRUE 1
+
 
 //********
 //********HEADERS********
@@ -72,15 +72,14 @@ header_type tcp_t {
 	fields {
 		srcPort : 16;
 		dstPort : 16;
-		seqNo : 32;
-		ackNo : 32;
+		seq_no : 32;
+		ack_no : 32;
 		dataOffset : 4;
         res : 6;
 		flags : 6;	 
         window : 16;
         checksum : 16;
         urgentPtr : 16;
-		optional : *;
     }
 }
 
@@ -98,7 +97,7 @@ header tcp_t tcp;
 
 // parser: start
 parser start {
-	set_metadata(meta.in_port, standard_metadata.ingress_port);
+	set_metadata(meta.to_drop, TRUE);
 	return  parse_ethernet;
 }
 
@@ -167,8 +166,8 @@ field_list tcp_checksum_list {
         meta.tcp_length;
         tcp.srcPort;
         tcp.dstPort;
-        tcp.seqNo;
-        tcp.ackNo;
+        tcp.seq_no;
+        tcp.ack_no;
         tcp.dataOffset;
         tcp.res;
         tcp.flags; 
@@ -196,10 +195,8 @@ parser parse_tcp {
 	set_metadata(meta.tcp_sp, tcp.srcPort);
 	set_metadata(meta.tcp_dp, tcp.dstPort);
 	// set_metadata(meta.tcp_flags, tcp.flags);
-	set_metadata(meta.tcp_seqNo, tcp.seqNo);
-	set_metadata(meta.tcp_ackNo, tcp.ackNo);
-	// drop as default
-	set_metadata(meta.forward_strategy, FORWARD_DROP_PKT);
+	set_metadata(meta.tcp_seq_no, tcp.seq_no);
+	set_metadata(meta.tcp_ack_no, tcp.ack_no);
 	return ingress;
 }
 //********PARSERS END********
@@ -221,13 +218,14 @@ header_type meta_t {
         tcp_sp : 16;	// tcp src port
         tcp_dp : 16;	// tcp des port
         tcp_length : 16;	// tcp packet length
-		tcp_ackNo:32;
-		tcp_seqNo:32;
+		tcp_ack_no:32;
+		tcp_seq_no:32;
+
+		// tcp 5-tuple hash
+		tcp_digest : 13;
 		
 		// forward information
-		forward_strategy : 4;	// 0: drop // 1: syn+ack back to h1 // 02: syn to h2 // 03: send h2 ack // 04: resubmit // 05: forward the packet as normal  
         nhop_ipv4 : 32;	// ipv4 next hop
-        in_port : 8;	// in port (of switch)
 	
 		// syn meter result (3 colors)
 		syn_meter_result : 2;	// METER_COLOR_RED, METER_COLOR_YELLOW, METER_COLOR_GREEN
@@ -243,8 +241,13 @@ header_type meta_t {
 		// for syn-cookie
 		cookie_key1 : 32;
 		cookie_key2 : 32;
-		cookie_val1 : 32;
+		cookie_val1 : 32;	// always use val1 first
 		cookie_val2 : 32;
+
+		// when receiving syn+ack from server
+		cookie_val_in_register : 33;
+
+		to_drop : 1;
 	}
 
 }
@@ -278,8 +281,8 @@ register valid_ack_counter {
 	instance_count : 1;
 }
 register syn_cookie_pool {
-	width : 32;
-	instance_count : 8192;	//13 bits
+	width : 33;	// first bit for existence, followed by 32 bits for syn-cookie
+	instance_count : 8192;	// 13 bits
 }
 //********REGISTERS ENDS********
 
@@ -366,7 +369,7 @@ action _drop() {
 		tcp.srcPort;
 		tcp.dstPort;
 		ipv4.protocol;
-		meta.key1;
+		meta.cookie_key1;
 	}
 	field_list_calculation syn_cookie_key1_calculation {
 		input {
@@ -383,7 +386,7 @@ action _drop() {
 		tcp.srcPort;
 		tcp.dstPort;
 		ipv4.protocol;
-		meta.key2;
+		meta.cookie_key2;
 	}
 	field_list_calculation syn_cookie_key2_calculation {
 		input {
@@ -400,7 +403,7 @@ action _drop() {
 		tcp.dstPort;
 		tcp.srcPort;
 		ipv4.protocol;
-		meta.key1;
+		meta.cookie_key1;
 	}
 	field_list_calculation syn_cookie_key1_reverse_calculation {
 		input {
@@ -417,7 +420,7 @@ action _drop() {
 		tcp.dstPort;
 		tcp.srcPort;
 		ipv4.protocol;
-		meta.key2;
+		meta.cookie_key2;
 	}
 	field_list_calculation syn_cookie_key2_reverse_calculation {
 		input {
@@ -457,25 +460,17 @@ action _drop() {
 //********for valid_connection_from_server_table********
 // {
 	action set_passthrough_syn_proxy_from_server(seq_no_offset) {
-		modify_field(meta.forward_strategy, FORWARD_CHANGE_SEQ_OFFSET);
-		modify_field(meta.seq_no_offset, seq_no_offset);
-	}
-	action set_passthrough_syn_proxy_from_server_for_new_connection() {
-		// syn+ack packet
-		modify_field(meta.forward_strategy, FORWARD_OPEN_WINDOW);	
-		// set seq_no_offset
-		// register_read(meta.seq_no_offset, sa_seq_num_pool, meta.reverse_eight_bit_index);
-		modify_field(meta.seq_no_offset, meta.reverse_eight_bit_index);
-		subtract(meta.seq_no_offset, tcp.seqNo, meta.seq_no_offset);
-		// modify_field(tcp.seqNo, meta.seq_no_offset);
-		// modify_field(tcp.seqNo, 999);
-		// modify_field(meta.seq_no_offset, 0);
-		// update seq# offset in flow table
-		clone_ingress_pkt_to_egress(CLONE_UPDATE_OFFSET, copy_to_cpu_fields);
+		// modify_field(meta.seq_no_offset, seq_no_offset);
+		// TODO: by default, we reckon tcp.seq_no > cookie_val
+		subtract_from_field(tcp.seq_no, seq_no_offset);
+		modify_field(meta.to_drop, FALSE);
+
 	}
 	action set_passthrough_syn_proxy_packet_source(seq_no_offset) {
-		modify_field(meta.forward_strategy, FORWARD_CHANGE_ACK_OFFSET);
-		modify_field(meta.seq_no_offset, seq_no_offset);
+		// modify_field(meta.seq_no_offset, seq_no_offset);
+		// TODO: by default, we reckon tcp.seq_no > cookie_val
+		add_to_field(tcp.ack_no, meta.seq_no_offset);
+		modify_field(meta.to_drop, FALSE);
 	}
 	table valid_connection_table {
 		reads {
@@ -483,20 +478,82 @@ action _drop() {
 			ipv4.dstAddr : exact;
 			tcp.srcPort : exact;
 			tcp.dstPort : exact;
-			tcp.flags : ternary;
 		}
 		actions {
 			_no_op;
 			set_passthrough_syn_proxy_packet_source;
 			set_passthrough_syn_proxy_from_server;
-			set_passthrough_syn_proxy_from_server_for_new_connection;
+		}
+	}
+// }
+//********for read_cookie_in_register_table********
+// {
+	table drop_table {
+		actions {
+			_drop;
+		}
+	}
+// }
+//********for read_cookie_in_register_table********
+// {
+	action read_cookie_in_register() {		
+		modify_field_with_hash_based_offset(meta.tcp_digest, 0, tcp_five_tuple_hash/*csum 16 should be identical whatever the direction of the packet is*/, 13);
+		register_read(meta.cookie_val_in_register, syn_cookie_pool, meta.tcp_digest);
+	}
+	table read_cookie_in_register_table {
+		actions {
+			read_cookie_in_register;
+		}
+	}
+// }
+//********for open_window_table********
+// {
+	action open_window() {
+		modify_field(meta.to_drop, FALSE);
+		// set seq_no_offset
+		// TODO: by default, we reckon tcp.seq_no > cookie_val
+		subtract(meta.seq_no_offset, tcp.seq_no, meta.seq_no_offset);
+		modify_field(tcp.seq_no, meta.cookie_val_in_register & 0xffffffff);
+		// mark register 'invalid'
+		register_write(syn_cookie_pool, meta.tcp_digest, 0);
+		// insert item into cpu
+		clone_ingress_pkt_to_egress(CPU_SESSION, copy_to_cpu_fields);
+	}
+	table open_window_table {
+		actions {
+			open_window;
 		}
 	}
 // }
 //********for reply_sa_table********
 // {
-	action set_reply_sa() {
-		modify_field(meta.forward_strategy, FORWARD_REPLY_CLIENT_SA);
+	action set_reply_sa() {		
+		modify_field(meta.to_drop, FALSE);
+		// reply client with syn+ack and a certain seq no, and window size 0
+		
+		// no need to exchange ethernet values
+		// since forward table will do this for us
+		// // exchange src-eth, dst-eth
+		// modify_field(ethernet.srcAddr, meta.eth_da);
+		// modify_field(ethernet.dstAddr, meta.eth_sa);
+		// exchange src-ip, dst-ip
+		modify_field(ipv4.srcAddr, meta.ipv4_da);
+		modify_field(ipv4.dstAddr, meta.ipv4_sa);
+		// exchange src-port, dst-port
+		modify_field(tcp.srcPort, meta.tcp_dp);
+		modify_field(tcp.dstPort, meta.tcp_sp);
+		// set tcp flags: SYN+ACK
+		modify_field(tcp.flags, TCP_FLAG_ACK | TCP_FLAG_SYN);
+		// set ack# to be seq# + 1
+		modify_field(tcp.ack_no, tcp.seq_no + 1);
+		// set seq# to be a hash val
+		modify_field(tcp.seq_no, meta.cookie_val1);
+		// set window to be 0.
+		// stop client from transferring data
+		modify_field(tcp.window, 0);
+		// set syn_cookie_pool
+		modify_field_with_hash_based_offset(meta.tcp_digest, 0, tcp_five_tuple_hash, 13);
+		register_write(syn_cookie_pool, meta.tcp_digest, (1 << 32) | meta.cookie_val1);
 		// count: syn packet
 		register_read(meta.syn_counter_val, syn_counter, 0);
 		add_to_field(meta.syn_counter_val, 1);
@@ -511,15 +568,18 @@ action _drop() {
 //********for confirm_connection_table********
 // {
 	action confirm_connection() {
-		// valid ack#
-		modify_field(meta.forward_strategy, FORWARD_CONNECT_WITH_SERVER);
+		modify_field(meta.to_drop, FALSE);
+		// handshake with client finished, start establishing connection with server
+		// set seq# to be seq# - 1 (same as the beginning syn packet seq#)
+		modify_field(tcp.seq_no, tcp.seq_no - 1);
+		// set flag: syn
+		modify_field(tcp.flags, TCP_FLAG_SYN);
+		// set ack# 0 (optional)
+		modify_field(tcp.ack_no, 0);
 		// count: valid ack
-		// count(valid_ack_counter, 0);
 		register_read(meta.valid_ack_counter_val, valid_ack_counter, 0);
 		add_to_field(meta.valid_ack_counter_val, 1);
 		register_write(valid_ack_counter, 0 , meta.valid_ack_counter_val);
-		// insert connection in flow table
-		clone_ingress_pkt_to_egress(CLONE_NEW_CONNECTION, copy_to_cpu_fields);
 	}
 	table confirm_connection_table {
 		actions {
@@ -543,23 +603,10 @@ action _drop() {
 	}
 // }
 */
-//********for no_syn_proxy_table********
-// {
-	action no_syn_proxy_action() {
-		// forward every packets normally
-		modify_field(meta.forward_strategy, FORWARD_NORMALLY);	
-		modify_field(meta.seq_no_offset, 0);
-	}
-	table no_syn_proxy_table {
-		actions {
-			no_syn_proxy_action;
-		}
-	}
-// }
 //********for insert_connection_table********
 // {
 	action insert_connection() {
-		clone_ingress_pkt_to_egress(CLONE_NEW_CONNECTION, copy_to_cpu_fields);
+		clone_ingress_pkt_to_egress(CPU_SESSION, copy_to_cpu_fields);
 	}
 	table insert_connection_table {
 		actions {
@@ -567,86 +614,6 @@ action _drop() {
 		}
 	}
 // }
-
-
-//********for syn_proxy_forward_table********
-// {
-	action syn_proxy_forward_drop(){
-		modify_field(ipv4.dstAddr, 0);
-		drop();
-	}
-	action syn_proxy_forward_reply_client_sa(){		
-		// reply client with syn+ack and a certain seq no, and window size 0
-		
-		// no need to exchange ethernet values
-		// since forward table will do this for us
-		// // exchange src-eth, dst-eth
-		// modify_field(ethernet.srcAddr, meta.eth_da);
-		// modify_field(ethernet.dstAddr, meta.eth_sa);
-		// exchange src-ip, dst-ip
-		modify_field(ipv4.srcAddr, meta.ipv4_da);
-		modify_field(ipv4.dstAddr, meta.ipv4_sa);
-		// exchange src-port, dst-port
-		modify_field(tcp.srcPort, meta.tcp_dp);
-		modify_field(tcp.dstPort, meta.tcp_sp);
-		// set tcp flags: SYN+ACK
-		modify_field(tcp.flags, TCP_FLAG_ACK | TCP_FLAG_SYN);
-		// set ack# to be seq# + 1
-		modify_field(tcp.ackNo, tcp.seqNo + 1);
-		// set seq# to be a hash val
-		modify_field(tcp.seqNo, meta.sa_seq_num);
-		// set window to be 0.
-		// stop client from transferring data
-		modify_field(tcp.window, 0);
-	}
-	action syn_proxy_forward_connect_with_server(){
-		// handshake with client finished, start establishing connection with server
-		// set seq# to be seq# - 1 (same as the beginning syn packet seq#)
-		modify_field(tcp.seqNo, tcp.seqNo - 1);
-		// set flag: syn
-		modify_field(tcp.flags, TCP_FLAG_SYN);
-		// set ack# 0 (optional)
-		modify_field(tcp.ackNo, 0);
-		// TODO: drop data!		
-	}
-	action syn_proxy_forward_open_window(){
-		// syn+ack from server received. connection established. forward this packet to client
-		subtract_from_field(tcp.seqNo, meta.seq_no_offset);
-	}
-	action syn_proxy_forward_change_seq_offset(){
-		// it is a packet sent by server to client
-		// an offset needs to be added to seq#
-		subtract_from_field(tcp.seqNo, meta.seq_no_offset);
-		// add_to_field(tcp.seqNo, meta.seq_no_offset);	
-	}
-	action syn_proxy_forward_change_ack_offset(){
-		// it is a packet sent by client to server
-		// an offset needs to be added to ack#
-		add_to_field(tcp.ackNo, meta.seq_no_offset);
-		// add_to_field(tcp.seqNo, meta.seq_no_offset);	
-	}
-	action syn_proxy_forward_normally(){
-		// forward normally
-		// do nothing		
-	}
-	// it is not supposed to be a flow table
-	table syn_proxy_forward_table{
-		reads {
-			meta.forward_strategy : exact;
-		}
-		actions{
-			syn_proxy_forward_drop;
-			syn_proxy_forward_reply_client_sa;
-			syn_proxy_forward_connect_with_server;
-			syn_proxy_forward_open_window;
-			syn_proxy_forward_change_seq_offset;
-			syn_proxy_forward_change_ack_offset;
-			syn_proxy_forward_normally;
-		}
-	}
-// }
-
-
 //********for ipv4_lpm_table********
 // {
 	action set_nhop(nhop_ipv4, port) {
@@ -696,14 +663,10 @@ control ingress {
 			apply(turn_on_proxy_table);
 		}
 	}
-	// TODO: timer来改变8位selection的位置
-	// select 8 bit for hashing
-	// these 8 bits are used in multiple conditions
-	apply(eight_bit_index_select_table);
 	// check if this connection has been successfully established before
 	// if so, ignore syn proxy mechanism
 	apply(valid_connection_table);
-	if(meta.forward_strategy == FORWARD_DROP_PKT){
+	if(meta.to_drop == TRUE){
 		// does not exist in valid_connection_table.
 		// check if syn proxy is on
 		/*if(meta.syn_proxy_status == PROXY_ON){*/
@@ -716,21 +679,28 @@ control ingress {
 			// if it is not one of the three types above, it will be dropped in this table
 			apply(calculate_syn_cookie_table);
 
-			if(tcp_flags & (TCP_FLAG_ACK | TCP_FLAG_SYN) == (TCP_FLAG_ACK | TCP_FLAG_SYN)){
+			if(tcp.flags & (TCP_FLAG_ACK | TCP_FLAG_SYN) == (TCP_FLAG_ACK | TCP_FLAG_SYN)){
 				// syn+ack
-				 
+				apply(read_cookie_in_register_table);
+				if((meta.cookie_val_in_register & 0x100000000) >> 32 == 1){
+					// valid
+					apply(open_window_table);
+				}
 			} else{
-				if(tcp_flags & TCP_FLAG_ACK == TCP_FLAG_ACK){
+				if(tcp.flags & TCP_FLAG_SYN == TCP_FLAG_SYN){
 					// has syn but no ack
 					// send back syn+ack with special seq#
 					apply(reply_sa_table);
-				} else if(tcp_flags & TCP_FLAG_SYN == TCP_FLAG_SYN) {
+				} else if(tcp.flags & TCP_FLAG_ACK == TCP_FLAG_ACK) {
 					// has ack but no syn
 					// make sure ack# is right
-					if(tcp.ackNo == meta.sa_seq_num + 1){
+					if(tcp.ack_no == meta.cookie_val1 + 1 or tcp.ack_no == meta.cookie_val2 + 1){
 						apply(confirm_connection_table);
 					}
 				}
+			}
+			if(meta.to_drop == TRUE){
+				apply(drop_table);
 			}
 			/*
 			// check the difference between
@@ -752,7 +722,6 @@ control ingress {
 		}else {			
 			// syn proxy off
 			// forward every packets normally
-			apply(no_syn_proxy_table);
 			// store all connections while proxy is off
 			// in order to avoid collision when proxy is on
 			if(tcp.flags & (TCP_FLAG_ACK | TCP_FLAG_SYN) == (TCP_FLAG_ACK | TCP_FLAG_SYN)){
@@ -762,8 +731,7 @@ control ingress {
 		}
 		*/
 	}
-	apply(syn_proxy_forward_table);	
-	if(meta.forward_strategy == FORWARD_NORMALLY){
+	if(meta.to_drop == FALSE){
 		// TODO: next steps (detect packet size & num from each source ip)
 
 	}
@@ -798,7 +766,7 @@ control ingress {
 		// modify_field(cpu_header.destination, 0xff);
 		// modify_field(cpu_header.seq_no_offset, meta.seq_no_offset);
 		modify_field(ethernet.dstAddr, 0xffffffffffff);
-		modify_field(tcp.seqNo, 0xff0000000000 | meta.seq_no_offset);
+		modify_field(tcp.seq_no, 0xff0000000000 | meta.seq_no_offset);
 	}
 
 	table send_to_cpu {
