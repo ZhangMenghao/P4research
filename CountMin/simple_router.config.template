@@ -1,0 +1,12 @@
+set_crc16_parameters calc_2 0x1021 0xffff 0x0000 false false
+set_crc32_parameters calc_0 0x4c11db7 0xffffffff 0x00000000 false false
+table_set_default send_frame egress_drop
+table_set_default forward ingress_drop
+table_set_default ipv4_lpm ingress_drop
+table_add send_frame rewrite_mac 1 => 00:aa:bb:00:00:00
+table_add send_frame rewrite_mac 2 => 00:aa:bb:00:00:01
+table_add forward set_dmac 10.0.0.10 => 00:04:00:00:00:00
+table_add forward set_dmac 10.0.1.10 => 00:04:00:00:00:01
+table_add ipv4_lpm set_nhop 10.0.0.10/32 => 10.0.0.10 1
+table_add ipv4_lpm set_nhop 10.0.1.10/32 => 10.0.1.10 2
+table_add hhd.drop_heavy_hitter hhd.heavy_hitter_drop 1 0

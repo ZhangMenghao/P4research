@@ -6,3 +6,5 @@
 #for dot
 *.dot
 *~
+CountMin/build/*
+*.pyc
