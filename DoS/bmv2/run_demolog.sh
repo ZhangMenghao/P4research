@@ -16,9 +16,9 @@
 
 THIS_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-source $THIS_DIR/../../env.sh
+source $THIS_DIR/../../../env.sh
 
-TARGET=syntry
+TARGET=proxyswitch
 TARGET_SRC=$TARGET.p4
 TARGET_JSON=$TARGET.json
 
@@ -30,7 +30,8 @@ CLI_PATH=$BMV2_PATH/targets/simple_switch/simple_switch_CLI
 
 /home/wsc/p4/p4-guide/bin/p4c/build/backends/bmv2/p4c-bm2-ss  -o $TARGET_JSON --p4v 14 ./p4src/$TARGET_SRC
 
-sudo $SWITCH_PATH --log-file ss-log --log-flush -i 0@veth2 -i 1@veth4 -i 2@veth6  $TARGET_JSON
+sudo $SWITCH_PATH --log-file ss-log --log-flush -i 0@veth2 -i 1@veth4 -i 2@veth6  $TARGET_JSON  
 
 $CLI_PATH < commands.txt 
+
 

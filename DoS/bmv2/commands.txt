@@ -1,0 +1,9 @@
+table_set_default drop_table _drop
+table_set_default whitelist_check_table lookup_whitelist
+table_set_default forward_normal_table _drop
+table_set_default session_init_table sendBackSynAck
+table_set_default session_construct_table sendBackRst
+
+
+table_add forward_normal_table forward_normal  1  => 2
+table_add forward_normal_table forward_normal  2  => 1

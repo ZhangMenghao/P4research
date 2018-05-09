@@ -8,3 +8,9 @@
 *~
 CountMin/build/*
 *.pyc
+#png
+*.png
+#json
+*.json
+ss-log.txt
+
