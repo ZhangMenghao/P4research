@@ -571,6 +571,18 @@ action _drop() {
 		}
 	}
 // }
+//********for mark_no_conn_table********
+// {
+	action mark_no_conn() {
+		modify_field(meta.to_drop, FALSE);
+		register_write(no_proxy_table, meta.no_proxy_table_hash_val, CONN_NOT_EXIST);
+	}
+	table mark_no_conn_table {
+		actions {
+			mark_no_conn;
+		}
+	}
+// }
 //********for mark_has_syn_table********
 // {
 	action mark_has_syn() {
@@ -710,10 +722,16 @@ control conn_filter {
 		}else if (tcp.flags & TCP_FLAG_ACK == TCP_FLAG_ACK){
 			// write 10 into no_proxy_table
 			apply(mark_has_ack_table);
+		}else if(tcp.flags & TCP_FLAG_FIN == TCP_FLAG_FIN){
+			apply(mark_no_conn_table);
 		}
 	}else if(meta.no_proxy_table_entry_val == CONN_HAS_ACK){
-		// forward normally
-		apply(mark_foward_normally_table);
+		if(tcp.flags & TCP_FLAG_FIN == TCP_FLAG_FIN){
+			apply(mark_has_syn_table);
+		}else{
+			// forward normally
+			apply(mark_foward_normally_table);
+		}
 	}
 }
 

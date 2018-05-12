@@ -9,12 +9,13 @@ table_set_default drop_table _drop
 table_set_default open_window_table open_window
 table_set_default reply_sa_table reply_sa
 table_set_default confirm_connection_table confirm_connection
+table_set_default mark_no_conn_table mark_no_conn
 table_set_default mark_has_syn_table mark_has_syn
 table_set_default mark_has_ack_table mark_has_ack
 table_set_default mark_foward_normally_table mark_foward_normally
 table_set_default ipv4_lpm_table _drop
 table_set_default forward_table _drop
-table_set_default send_frame rewrite_mac
+table_set_default send_frame _drop
 
 
 
