@@ -20,7 +20,8 @@
 #define TRUE 1
 
 // for heavy hitter count-min sketch
-#define HHTHRESHOLD 4096
+#define HH_CONN_THRESHOLD 100 // doubled
+#define HH_SIZE_THRESHOLD 4096
 // for no_proxy_table
 #define CONN_NOT_EXIST 0
 #define CONN_HAS_SYN 1
@@ -240,12 +241,13 @@ header_type meta_t {
 		syn_proxy_table_hash_val : 13;
 		syn_proxy_table_entry_val : 39;
 
-		// for heavy hitter detector
-		hh_hash_val0:8;//perhaps be 16
-        hh_hash_val1:8;
-        hh_count_val0:32;
-        hh_count_val1:32;
-
+		// for connection num & packet size detector
+		hh_hash_val0 : 8;//perhaps be 16
+        hh_hash_val1 : 8;
+        hh_size_count_val0 : 32;
+        hh_size_count_val1 : 32;
+        hh_conn_count_val0 : 32;
+        hh_conn_count_val1 : 32; 
 	}
 
 }
@@ -283,12 +285,22 @@ counter valid_ack_counter {
 	static : confirm_connection_table;
 	instance_count : 1;
 }
-register hh_hashtable0
+register hh_size_hashtable0
 {
     width: 32;
     instance_count: 256;
 }
-register hh_hashtable1
+register hh_size_hashtable1
+{
+    width:32;
+    instance_count:256;
+}
+register hh_conn_hashtable0
+{
+    width: 32;
+    instance_count: 256;
+}
+register hh_conn_hashtable1
 {
     width:32;
     instance_count:256;
@@ -669,11 +681,11 @@ action _drop() {
 		}
 	}
 // }
-//********for set_heavy_hitter_count_table********
+//********for set_size_count_table********
 // {
 	field_list ip_hash_fields {
 		ipv4.src_addr;
-		ipv4.dst_addr;
+		// ipv4.dst_addr;
 	}
 	field_list_calculation heavy_hitter_hash0{
 		input {
@@ -689,24 +701,59 @@ action _drop() {
 		algorithm:crc16;
 		output_width:8;
 	}
-	action set_heavy_hitter_count() {
+	action pkt_size_count() {
 		modify_field_with_hash_based_offset(meta.hh_hash_val0, 0, heavy_hitter_hash0, 8);
-		register_read(meta.hh_count_val0, hh_hashtable0, meta.hh_hash_val0);
-		add_to_field(meta.hh_count_val0, ipv4.totalLen);
-		register_write(hh_hashtable0, meta.hh_hash_val0, meta.hh_count_val0);
+		register_read(meta.hh_size_count_val0, hh_size_hashtable0, meta.hh_hash_val0);
+		add_to_field(meta.hh_size_count_val0, ipv4.totalLen);
+		register_write(hh_size_hashtable0, meta.hh_hash_val0, meta.hh_size_count_val0);
 
-		modify_field_with_hash_based_offset(meta.hh_count_val1, 0, heavy_hitter_hash1, 8);
-		register_read(meta.hh_count_val1, hh_hashtable1, meta.hh_count_val1);
-		add_to_field(meta.hh_count_val1, ipv4.totalLen);
-		register_write(hh_hashtable1, meta.hh_hash_val1, meta.hh_count_val1);
+		modify_field_with_hash_based_offset(meta.hh_hash_val1, 0, heavy_hitter_hash1, 8);
+		register_read(meta.hh_size_count_val1, hh_size_hashtable1, meta.hh_hash_val1);
+		add_to_field(meta.hh_size_count_val1, ipv4.totalLen);
+		register_write(hh_size_hashtable1, meta.hh_hash_val1, meta.hh_size_count_val1);
 	}
 
-	table set_heavy_hitter_count_table{
+	table set_size_count_table{
 
 		actions{
-			set_heavy_hitter_count;
+			pkt_size_count;
 		}
-		size:1;
+	}
+// }
+//********for pkt_count_inc_table********
+// {
+	action pkt_count_inc() {
+		register_read(meta.hh_conn_count_val0, hh_conn_hashtable0, meta.hh_hash_val0);
+		add_to_field(meta.hh_conn_count_val0, 1);
+		register_write(hh_conn_hashtable0, meta.hh_hash_val0, meta.hh_conn_count_val0);
+
+		register_read(meta.hh_conn_count_val1, hh_conn_hashtable1, meta.hh_hash_val1);
+		add_to_field(meta.hh_conn_count_val1, 1);
+		register_write(hh_conn_hashtable1, meta.hh_hash_val1, meta.hh_conn_count_val1);
+	}
+
+	table pkt_count_inc_table{
+		actions{
+			pkt_count_inc;
+		}
+	}
+// }
+//********for pkt_count_dec_table********
+// {
+	action pkt_count_dec() {
+		register_read(meta.hh_conn_count_val0, hh_conn_hashtable0, meta.hh_hash_val0);
+		subtract_from_field(meta.hh_conn_count_val0, 1);
+		register_write(hh_conn_hashtable0, meta.hh_hash_val0, meta.hh_conn_count_val0);
+
+		register_read(meta.hh_conn_count_val1, hh_conn_hashtable1, meta.hh_hash_val1);
+		subtract_from_field(meta.hh_conn_count_val1, 1);
+		register_write(hh_conn_hashtable1, meta.hh_hash_val1, meta.hh_conn_count_val1);
+	}
+
+	table pkt_count_dec_table{
+		actions{
+			pkt_count_dec;
+		}
 	}
 // }
 
@@ -847,11 +894,23 @@ control ingress {
 	// }
 	
 	if(meta.to_drop == FALSE){
-		// TODO: next steps (detect packet size & num from each source ip)
-		apply(set_heavy_hitter_count_table);
-		if(meta.hh_count_val0 > HHTHRESHOLD and 
-			meta.hh_count_val1 > HHTHRESHOLD){
-				
+		// packets size count
+		apply(set_size_count_table);
+		if(meta.hh_size_count_val0 > HH_SIZE_THRESHOLD and 
+			meta.hh_size_count_val1 > HH_SIZE_THRESHOLD){
+			// TODO: Add to blacklist
+		}
+		// connection count (for each src ip)
+		if(tcp.flags & TCP_FLAG_SYN == TCP_FLAG_SYN){
+			// add 1 to count-min sketch
+			apply(pkt_count_inc_table);
+		} else if(tcp.flags & TCP_FLAG_FIN == TCP_FLAG_FIN){
+			// subtract 1 from count-min sketch
+			apply(pkt_count_dec_table);
+		}
+		if(meta.hh_conn_count_val0 > HH_CONN_THRESHOLD and 
+			meta.hh_conn_count_val1 > HH_CONN_THRESHOLD){
+			// TODO: Add to blacklist
 		}
 	}else{
 		apply(drop_table);
