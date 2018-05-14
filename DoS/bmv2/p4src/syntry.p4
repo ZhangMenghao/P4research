@@ -19,10 +19,12 @@
 #define FALSE 0
 #define TRUE 1
 
-
-#define CONN_NOT_EXIST 00
-#define CONN_HAS_SYN 01
-#define CONN_HAS_ACK 10
+// for heavy hitter count-min sketch
+#define HHTHRESHOLD 4096
+// for no_proxy_table
+#define CONN_NOT_EXIST 0
+#define CONN_HAS_SYN 1
+#define CONN_HAS_ACK 2
 #define INVALID 0x0
 #define VALID 0x1
 
@@ -32,8 +34,8 @@
 //********
 header_type ethernet_t {
 	fields {
-		dstAddr : 48;
-		srcAddr : 48;
+		dst_addr : 48;
+		src_addr : 48;
 		etherType : 16;
 	}
 }
@@ -50,8 +52,8 @@ header_type ipv4_t {
 		ttl : 8;
 		protocol : 8;
 		hdrChecksum : 16;
-		srcAddr : 32;
-		dstAddr: 32;
+		src_addr : 32;
+		dst_addr: 32;
 	}
 } 
 
@@ -93,8 +95,8 @@ parser start {
 // parser: ethernet
 parser parse_ethernet {
 	extract(ethernet);
-	set_metadata(meta.eth_da,ethernet.dstAddr);
-	set_metadata(meta.eth_sa,ethernet.srcAddr);
+	set_metadata(meta.eth_da,ethernet.dst_addr);
+	set_metadata(meta.eth_sa,ethernet.src_addr);
 	return select(latest.etherType) {
 		ETHERTYPE_IPV4 : parse_ipv4;
 		default: ingress;
@@ -112,8 +114,8 @@ field_list ipv4_checksum_list {
 	ipv4.fragOffset;
 	ipv4.ttl;
 	ipv4.protocol;
-	ipv4.srcAddr;
-	ipv4.dstAddr;
+	ipv4.src_addr;
+	ipv4.dst_addr;
 }
 
 field_list_calculation ipv4_checksum {
@@ -135,8 +137,8 @@ calculated_field ipv4.hdrChecksum  {
 parser parse_ipv4 {
 	extract(ipv4);
 	
-	set_metadata(meta.ipv4_sa, ipv4.srcAddr);
-	set_metadata(meta.ipv4_da, ipv4.dstAddr);
+	set_metadata(meta.ipv4_sa, ipv4.src_addr);
+	set_metadata(meta.ipv4_da, ipv4.dst_addr);
 	set_metadata(meta.tcp_length, ipv4.totalLen - 20);	
 	return select(ipv4.protocol) {
 		IP_PROT_TCP : parse_tcp;
@@ -146,8 +148,8 @@ parser parse_ipv4 {
 
 // checksum: tcp
 field_list tcp_checksum_list {
-        ipv4.srcAddr;
-        ipv4.dstAddr;
+        ipv4.src_addr;
+        ipv4.dst_addr;
         8'0;
         ipv4.protocol;
         meta.tcp_length;
@@ -208,15 +210,12 @@ header_type meta_t {
 		tcp_ack_no:32;
 		tcp_seq_no:32;
 
-		// tcp 5-tuple hash
-		tcp_digest : 13;
-		
 		// forward information
         nhop_ipv4 : 32;	// ipv4 next hop
 	
-		// syn meter result (3 colors)
-		syn_meter_result : 2;	// METER_COLOR_RED, METER_COLOR_YELLOW, METER_COLOR_GREEN
+		// for control flow
 		syn_proxy_status : 1;	// 0 for PROXY_OFF, 1 for PROXY_ON
+		to_drop : 1;
 
 		// seq# offset  
 		seq_no_offset : 32;
@@ -227,9 +226,11 @@ header_type meta_t {
 		cookie_val1 : 32;	// always use val1 first
 		cookie_val2 : 32;
 
-		// when receiving syn+ack from server
-		cookie_val_in_register : 33;
-		offset_val_in_register : 33;
+		// for whitelist table
+		src_ip_hash_val : 12;
+		dst_ip_hash_val : 12;
+		src_ip_entry_val : 2;
+		dst_ip_entry_val : 2;
 
 		// for check_no_proxy_table
 		no_proxy_table_hash_val : 13;
@@ -239,32 +240,20 @@ header_type meta_t {
 		syn_proxy_table_hash_val : 13;
 		syn_proxy_table_entry_val : 39;
 
-		to_drop : 1;
 	}
 
 }
 metadata meta_t meta;
 
-
-// field_list copy_to_cpu_fields {
-// 	standard_metadata;
-//     meta;
-// }
 //********METADATA ENDS********
 
 
 
 //********REGISTERS********
 //********11 * 8192 byte = 88KB in total********
-counter syn_counter {
-	type : packets;
-	static : reply_sa_table;
-	instance_count : 1;
-}
-counter valid_ack_counter {
-	type : packets;
-	static : confirm_connection_table;
-	instance_count : 1;
+register whitelist_table {
+	width : 2;
+	instance_count : 4096;
 }
 register no_proxy_table {
 	width : 2;
@@ -277,12 +266,23 @@ register syn_proxy_table {
 	width : 39; // 32 bit offset + 6 bit port + 1 bit is_valid
 	instance_count : 8192;
 }
+counter syn_counter {
+	type : packets;
+	// static : reply_sa_table;
+	static : syn_meter_table;
+	instance_count : 1;
+}
+counter valid_ack_counter {
+	type : packets;
+	static : confirm_connection_table;
+	instance_count : 1;
+}
 //********REGISTERS ENDS********
 
 
 field_list tcp_five_tuple_list{
-	ipv4.srcAddr;
-	ipv4.dstAddr;
+	ipv4.src_addr;
+	ipv4.dst_addr;
 	tcp.srcPort;
 	tcp.dstPort;
 	ipv4.protocol;
@@ -301,14 +301,9 @@ action _no_op(){
 
 action _drop() {
 	modify_field(meta.to_drop, TRUE);
-	modify_field(ipv4.dstAddr, 0);
+	modify_field(ipv4.dst_addr, 0);
 	drop();
 }
-
-// action _resubmit()
-// {
-// 	resubmit(resubmit_FL);
-// }
 
 
 //********for syn_meter_table********
@@ -320,10 +315,47 @@ action _drop() {
 	action syn_meter_action() {
 		// read syn proxy status into metadata
 		execute_meter(syn_meter, 0, meta.syn_proxy_status);
+
+		// count: syn packet
+		count(syn_counter, 0);
 	}
 	table syn_meter_table {
 		actions {
 			syn_meter_action;
+		}
+	}
+// }
+//********for check_whitelist_table********
+// {
+	field_list src_ip_list {
+		ipv4.src_addr;
+	}
+	field_list_calculation src_ip_hash {
+		input {
+			src_ip_list;
+		}
+		algorithm : crc16;
+		output_width : 16;
+	}
+	field_list dst_ip_list {
+		ipv4.dst_addr;
+	}
+	field_list_calculation dst_ip_hash {
+		input {
+			dst_ip_list;
+		}
+		algorithm : crc16;
+		output_width : 16;
+	}
+	action read_whitelist_entry_value() {
+		modify_field_with_hash_based_offset(meta.src_ip_hash_val, 0, src_ip_hash, 12);
+		register_read(meta.src_ip_entry_val, whitelist_table, meta.src_ip_hash_val);
+		modify_field_with_hash_based_offset(meta.dst_ip_hash_val, 0, dst_ip_hash, 12);
+		register_read(meta.dst_ip_entry_val, whitelist_table, meta.dst_ip_hash_val);
+	}
+	table check_whitelist_table {
+		actions {
+			read_whitelist_entry_value;
 		}
 	}
 // }
@@ -378,8 +410,8 @@ action _drop() {
 //********for calculate_syn_cookie_table********
 // {
 	field_list syn_cookie_key1_list{
-		ipv4.srcAddr;
-		ipv4.dstAddr;
+		ipv4.src_addr;
+		ipv4.dst_addr;
 		tcp.srcPort;
 		tcp.dstPort;
 		ipv4.protocol;
@@ -395,8 +427,8 @@ action _drop() {
 
 
 	field_list syn_cookie_key2_list{
-		ipv4.srcAddr;
-		ipv4.dstAddr;
+		ipv4.src_addr;
+		ipv4.dst_addr;
 		tcp.srcPort;
 		tcp.dstPort;
 		ipv4.protocol;
@@ -412,8 +444,8 @@ action _drop() {
 
 
 	field_list syn_cookie_key1_reverse_list{
-		ipv4.dstAddr;
-		ipv4.srcAddr;
+		ipv4.dst_addr;
+		ipv4.src_addr;
 		tcp.dstPort;
 		tcp.srcPort;
 		ipv4.protocol;
@@ -429,8 +461,8 @@ action _drop() {
 
 
 	field_list syn_cookie_key2_reverse_list{
-		ipv4.dstAddr;
-		ipv4.srcAddr;
+		ipv4.dst_addr;
+		ipv4.src_addr;
 		tcp.dstPort;
 		tcp.srcPort;
 		ipv4.protocol;
@@ -523,11 +555,11 @@ action _drop() {
 		// no need to exchange ethernet values
 		// since forward table will do this for us
 		// // exchange src-eth, dst-eth
-		// modify_field(ethernet.srcAddr, meta.eth_da);
-		// modify_field(ethernet.dstAddr, meta.eth_sa);
+		// modify_field(ethernet.src_addr, meta.eth_da);
+		// modify_field(ethernet.dst_addr, meta.eth_sa);
 		// exchange src-ip, dst-ip
-		modify_field(ipv4.srcAddr, meta.ipv4_da);
-		modify_field(ipv4.dstAddr, meta.ipv4_sa);
+		modify_field(ipv4.src_addr, meta.ipv4_da);
+		modify_field(ipv4.dst_addr, meta.ipv4_sa);
 		// exchange src-port, dst-port
 		modify_field(tcp.srcPort, meta.tcp_dp);
 		modify_field(tcp.dstPort, meta.tcp_sp);
@@ -541,7 +573,7 @@ action _drop() {
 		// stop client from transferring data
 		modify_field(tcp.window, 0);
 		// count: syn packet
-		count(syn_counter, 0);
+		// count(syn_counter, 0);
 	}
 	table reply_sa_table {
 		actions {
@@ -600,6 +632,9 @@ action _drop() {
 	action mark_has_ack() {
 		modify_field(meta.to_drop, FALSE);
 		register_write(no_proxy_table, meta.no_proxy_table_hash_val, CONN_HAS_ACK);
+		// write into whitelist
+		register_write(whitelist_table, meta.src_ip_hash_val, 0x2 | meta.src_ip_entry_val);
+
 	}
 	table mark_has_ack_table {
 		actions {
@@ -618,6 +653,31 @@ action _drop() {
 		}
 	}
 // }
+//********for set_heavy_hitter_count_table********
+// {
+	action set_heavy_hitter_count() {
+		modify_field_with_hash_based_offset(custom_metadata.hash_val0, 0,
+											heavy_hitter_hash0, 8);
+		register_read(custom_metadata.count_val0, hashtable0, custom_metadata.hash_val0);
+		add_to_field(custom_metadata.count_val0, ipv4.totalLen);
+		register_write(hashtable0, custom_metadata.hash_val0, custom_metadata.count_val0);
+
+		modify_field_with_hash_based_offset(custom_metadata.hash_val1, 0,
+											heavy_hitter_hash1, 8);
+		register_read(custom_metadata.count_val1, hashtable1, custom_metadata.hash_val1);
+		add_to_field(custom_metadata.count_val1, ipv4.totalLen);
+		register_write(hashtable1, custom_metadata.hash_val1, custom_metadata.count_val1);
+	}
+
+	table set_heavy_hitter_count_table{
+
+		actions{
+			set_heavy_hitter_count;
+		}
+		size:1;
+	}
+// }
+
 //********for ipv4_lpm_table********
 // {
 	action set_nhop(nhop_ipv4, port) {
@@ -627,7 +687,7 @@ action _drop() {
 	}
 	table ipv4_lpm_table {
 		reads {
-			ipv4.dstAddr : lpm;
+			ipv4.dst_addr : lpm;
 		}
 		actions {
 			set_nhop;
@@ -641,7 +701,7 @@ action _drop() {
 //********for forward_table********
 // {
 	action set_dmac(dmac) {
-		modify_field(ethernet.dstAddr, dmac);
+		modify_field(ethernet.dst_addr, dmac);
 	}
 	table forward_table {
 		reads {
@@ -655,6 +715,12 @@ action _drop() {
 	}
 // }
 
+control whitelist {
+	apply(check_whitelist_table);
+	if(meta.src_ip_entry_val != 0 or meta.dst_ip_entry_val != 0){
+		apply(mark_foward_normally_table);
+	}
+}
 
 control syn_proxy {
 	// syn proxy on
@@ -734,23 +800,31 @@ control conn_filter {
 		}
 	}
 }
-
 control ingress {
+	
 	// first count syn packets
 	if(tcp.flags ^ TCP_FLAG_SYN == 0){
 		// only has syn
 		apply(syn_meter_table);
 	}
-	// check proxy status
-	apply(check_proxy_status_table);
-	conn_filter();
+	// whitelist();
+	// if(meta.to_drop == TRUE){
+		// check proxy status
+		apply(check_proxy_status_table);
+		conn_filter();
+	// }
 	
 	if(meta.to_drop == FALSE){
 		// TODO: next steps (detect packet size & num from each source ip)
-
+		apply(set_heavy_hitter_count_table);
+		if(custom_metadata.count_val0 > HHTHRESHOLD and 
+			custom_metadata.count_val1 > HHTHRESHOLD){
+				
+		}
 	}else{
 		apply(drop_table);
 	}
+	
 	apply(ipv4_lpm_table);
     apply(forward_table);
 }
@@ -760,7 +834,7 @@ control ingress {
 //********for send_frame********
 // {
 	action rewrite_mac(smac) {
-		modify_field(ethernet.srcAddr, smac);
+		modify_field(ethernet.src_addr, smac);
 	}
 	table send_frame {
 		reads {
@@ -774,33 +848,10 @@ control ingress {
 	}
 // }
 
-/*
-//********for send_to_cpu********
-// {
-	action do_cpu_encap() {
-		// add_header does not work
-		// add_header(cpu_header);
-		// modify_field(cpu_header.destination, 0xff);
-		// modify_field(cpu_header.seq_no_offset, meta.seq_no_offset);
-		modify_field(ethernet.dstAddr, 0xffffffffffff);
-		modify_field(tcp.seq_no, meta.seq_no_offset);
-	}
-
-	table send_to_cpu {
-		actions { do_cpu_encap; }
-		size : 0;
-	}
-// }
-*/
-
 control egress {
 	if(standard_metadata.instance_type == 0){
 		// not cloned
 		apply(send_frame);
-	}else{
-		// cloned.
-		// sent to cpu
-		// apply(send_to_cpu);
 	}
 }
 

@@ -35,3 +35,5 @@ table_add send_frame rewrite_mac 1 => 00:00:00:00:00:01
 table_add send_frame rewrite_mac 2 => 00:00:00:00:00:02
 
 mirroring_add 500 11
+
+meter_array_set_rates syn_meter 0.0000005:1 0.00001:1

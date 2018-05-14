@@ -1,3 +1,4 @@
+
 {
     "__meta__": {
         "version": [
@@ -665,27 +666,43 @@
     ],
     "actions": [
         {
+<<<<<<< HEAD
             "name": "mark_no_conn",
+=======
+            "name": "syn_meter_action",
+>>>>>>> origin/kx-dev
             "id": 0,
             "runtime_data": [],
             "primitives": [
                 {
-                    "op": "modify_field",
+                    "op": "execute_meter",
                     "parameters": [
                         {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "to_drop"
-                            ]
+                            "type": "meter_array",
+                            "value": "syn_meter"
                         },
                         {
                             "type": "hexstr",
                             "value": "0x0"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "syn_proxy_status"
+                            ]
+<<<<<<< HEAD
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x0"
+=======
+>>>>>>> origin/kx-dev
                         }
                     ]
                 },
                 {
+<<<<<<< HEAD
                     "op": "register_write",
                     "parameters": [
                         {
@@ -748,6 +765,13 @@
                                 "meta",
                                 "syn_proxy_table_hash_val"
                             ]
+=======
+                    "op": "count",
+                    "parameters": [
+                        {
+                            "type": "counter_array",
+                            "value": "syn_counter"
+>>>>>>> origin/kx-dev
                         },
                         {
                             "type": "hexstr",
@@ -762,6 +786,7 @@
                             "value": "0xd"
                         }
                     ]
+<<<<<<< HEAD
                 },
                 {
                     "op": "register_read",
@@ -785,12 +810,19 @@
                             ]
                         }
                     ]
+=======
+>>>>>>> origin/kx-dev
                 }
             ]
         },
         {
+<<<<<<< HEAD
             "name": "turn_on_proxy",
             "id": 3,
+=======
+            "name": "reply_sa",
+            "id": 1,
+>>>>>>> origin/kx-dev
             "runtime_data": [],
             "primitives": [
                 {
@@ -831,6 +863,7 @@
                             "value": "0x0"
                         }
                     ]
+<<<<<<< HEAD
                 }
             ]
         },
@@ -839,22 +872,9 @@
             "id": 5,
             "runtime_data": [],
             "primitives": [
-                {
-                    "op": "modify_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "to_drop"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x0"
-                        }
-                    ]
+=======
                 },
+>>>>>>> origin/kx-dev
                 {
                     "op": "modify_field",
                     "parameters": [
@@ -881,6 +901,34 @@
                             "type": "field",
                             "value": [
                                 "ipv4",
+<<<<<<< HEAD
+                                "srcAddr"
+=======
+                                "dstAddr"
+>>>>>>> origin/kx-dev
+                            ]
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+<<<<<<< HEAD
+                                "ipv4_da"
+=======
+                                "ipv4_sa"
+>>>>>>> origin/kx-dev
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "op": "modify_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+<<<<<<< HEAD
+                                "ipv4",
                                 "dstAddr"
                             ]
                         },
@@ -899,6 +947,8 @@
                         {
                             "type": "field",
                             "value": [
+=======
+>>>>>>> origin/kx-dev
                                 "tcp",
                                 "srcPort"
                             ]
@@ -1026,25 +1076,71 @@
                             "value": "0x0"
                         }
                     ]
-                },
+                }
+            ]
+        },
+        {
+            "name": "mark_has_ack",
+            "id": 2,
+            "runtime_data": [],
+            "primitives": [
                 {
+<<<<<<< HEAD
                     "op": "count",
                     "parameters": [
                         {
                             "type": "counter_array",
                             "value": "syn_counter"
+=======
+                    "op": "modify_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "to_drop"
+                            ]
+>>>>>>> origin/kx-dev
                         },
                         {
                             "type": "hexstr",
                             "value": "0x0"
+<<<<<<< HEAD
+=======
+                        }
+                    ]
+                },
+                {
+                    "op": "register_write",
+                    "parameters": [
+                        {
+                            "type": "register_array",
+                            "value": "no_proxy_table"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "no_proxy_table_hash_val"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x2"
+>>>>>>> origin/kx-dev
                         }
                     ]
                 }
             ]
         },
         {
+<<<<<<< HEAD
             "name": "mark_has_ack",
             "id": 6,
+=======
+            "name": "turn_off_proxy",
+            "id": 3,
+>>>>>>> origin/kx-dev
             "runtime_data": [],
             "primitives": [
                 {
@@ -1054,12 +1150,17 @@
                             "type": "field",
                             "value": [
                                 "meta",
+<<<<<<< HEAD
                                 "to_drop"
+=======
+                                "syn_proxy_status"
+>>>>>>> origin/kx-dev
                             ]
                         },
                         {
                             "type": "hexstr",
                             "value": "0x0"
+<<<<<<< HEAD
                         }
                     ]
                 },
@@ -1080,14 +1181,21 @@
                         {
                             "type": "hexstr",
                             "value": "0xa"
+=======
+>>>>>>> origin/kx-dev
                         }
                     ]
                 }
             ]
         },
         {
+<<<<<<< HEAD
             "name": "mark_foward_normally",
             "id": 7,
+=======
+            "name": "add_delta_to_ack",
+            "id": 4,
+>>>>>>> origin/kx-dev
             "runtime_data": [],
             "primitives": [
                 {
@@ -1109,6 +1217,7 @@
             ]
         },
         {
+<<<<<<< HEAD
             "name": "set_nhop",
             "id": 8,
             "runtime_data": [
@@ -1121,239 +1230,11 @@
                     "bitwidth": 9
                 }
             ],
-            "primitives": [
-                {
-                    "op": "modify_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "nhop_ipv4"
-                            ]
-                        },
-                        {
-                            "type": "runtime_data",
-                            "value": 0
-                        }
-                    ]
-                },
-                {
-                    "op": "modify_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "standard_metadata",
-                                "egress_spec"
-                            ]
-                        },
-                        {
-                            "type": "runtime_data",
-                            "value": 1
-                        }
-                    ]
-                },
-                {
-                    "op": "add_to_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "ipv4",
-                                "ttl"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "-0x1"
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "calculate_syn_cookie_from_server",
-            "id": 9,
-            "runtime_data": [
-                {
-                    "name": "key1",
-                    "bitwidth": 32
-                },
-                {
-                    "name": "key2",
-                    "bitwidth": 32
-                }
-            ],
-            "primitives": [
-                {
-                    "op": "modify_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "cookie_key1"
-                            ]
-                        },
-                        {
-                            "type": "runtime_data",
-                            "value": 0
-                        }
-                    ]
-                },
-                {
-                    "op": "modify_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "cookie_key2"
-                            ]
-                        },
-                        {
-                            "type": "runtime_data",
-                            "value": 1
-                        }
-                    ]
-                },
-                {
-                    "op": "modify_field_with_hash_based_offset",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "cookie_val1"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x0"
-                        },
-                        {
-                            "type": "calculation",
-                            "value": "syn_cookie_key1_reverse_calculation"
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x20"
-                        }
-                    ]
-                },
-                {
-                    "op": "modify_field_with_hash_based_offset",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "cookie_val2"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x0"
-                        },
-                        {
-                            "type": "calculation",
-                            "value": "syn_cookie_key2_reverse_calculation"
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x20"
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "read_no_proxy_table_entry_value",
-            "id": 10,
-            "runtime_data": [],
-            "primitives": [
-                {
-                    "op": "modify_field_with_hash_based_offset",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "no_proxy_table_hash_val"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x0"
-                        },
-                        {
-                            "type": "calculation",
-                            "value": "tcp_five_tuple_hash"
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0xd"
-                        }
-                    ]
-                },
-                {
-                    "op": "register_read",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "no_proxy_table_entry_val"
-                            ]
-                        },
-                        {
-                            "type": "register_array",
-                            "value": "no_proxy_table"
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "no_proxy_table_hash_val"
-                            ]
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "rewrite_mac",
-            "id": 11,
-            "runtime_data": [
-                {
-                    "name": "smac",
-                    "bitwidth": 48
-                }
-            ],
-            "primitives": [
-                {
-                    "op": "modify_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "ethernet",
-                                "srcAddr"
-                            ]
-                        },
-                        {
-                            "type": "runtime_data",
-                            "value": 0
-                        }
-                    ]
-                }
-            ]
-        },
-        {
+=======
             "name": "mark_has_syn",
-            "id": 12,
+            "id": 5,
             "runtime_data": [],
+>>>>>>> origin/kx-dev
             "primitives": [
                 {
                     "op": "modify_field",
@@ -1362,7 +1243,11 @@
                             "type": "field",
                             "value": [
                                 "meta",
+<<<<<<< HEAD
+                                "nhop_ipv4"
+=======
                                 "to_drop"
+>>>>>>> origin/kx-dev
                             ]
                         },
                         {
@@ -1381,38 +1266,65 @@
                         {
                             "type": "field",
                             "value": [
+<<<<<<< HEAD
+                                "standard_metadata",
+                                "egress_spec"
+=======
                                 "meta",
                                 "no_proxy_table_hash_val"
+>>>>>>> origin/kx-dev
                             ]
                         },
                         {
-                            "type": "hexstr",
-                            "value": "0x1"
+                            "type": "runtime_data",
+                            "value": 1
                         }
                     ]
+<<<<<<< HEAD
+                },
+=======
                 }
             ]
         },
         {
             "name": "confirm_connection",
-            "id": 13,
+            "id": 6,
             "runtime_data": [],
             "primitives": [
+>>>>>>> origin/kx-dev
                 {
-                    "op": "modify_field",
+                    "op": "add_to_field",
                     "parameters": [
                         {
                             "type": "field",
                             "value": [
+<<<<<<< HEAD
+                                "ipv4",
+                                "ttl"
+=======
                                 "meta",
                                 "to_drop"
+>>>>>>> origin/kx-dev
                             ]
                         },
                         {
                             "type": "hexstr",
-                            "value": "0x0"
+                            "value": "-0x1"
                         }
                     ]
+<<<<<<< HEAD
+                }
+            ]
+        },
+        {
+            "name": "calculate_syn_cookie_from_server",
+            "id": 9,
+            "runtime_data": [
+                {
+                    "name": "key1",
+                    "bitwidth": 32
+=======
+>>>>>>> origin/kx-dev
                 },
                 {
                     "op": "register_write",
@@ -1504,7 +1416,19 @@
                         },
                         {
                             "type": "hexstr",
+<<<<<<< HEAD
+                            "value": "0x0"
+                        },
+                        {
+                            "type": "calculation",
+                            "value": "syn_cookie_key1_reverse_calculation"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x20"
+=======
                             "value": "0x2"
+>>>>>>> origin/kx-dev
                         }
                     ]
                 },
@@ -1528,8 +1452,13 @@
                     "op": "count",
                     "parameters": [
                         {
+<<<<<<< HEAD
+                            "type": "calculation",
+                            "value": "syn_cookie_key2_reverse_calculation"
+=======
                             "type": "counter_array",
                             "value": "valid_ack_counter"
+>>>>>>> origin/kx-dev
                         },
                         {
                             "type": "hexstr",
@@ -1540,27 +1469,135 @@
             ]
         },
         {
-            "name": "calculate_syn_cookie_from_client",
-            "id": 14,
-            "runtime_data": [
-                {
-                    "name": "key1",
-                    "bitwidth": 32
-                },
-                {
-                    "name": "key2",
-                    "bitwidth": 32
-                }
-            ],
+<<<<<<< HEAD
+            "name": "read_no_proxy_table_entry_value",
+            "id": 10,
+=======
+            "name": "turn_on_proxy",
+            "id": 7,
+>>>>>>> origin/kx-dev
+            "runtime_data": [],
             "primitives": [
                 {
-                    "op": "modify_field",
+                    "op": "modify_field_with_hash_based_offset",
                     "parameters": [
                         {
                             "type": "field",
                             "value": [
                                 "meta",
-                                "cookie_key1"
+<<<<<<< HEAD
+                                "no_proxy_table_hash_val"
+=======
+                                "syn_proxy_status"
+>>>>>>> origin/kx-dev
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+<<<<<<< HEAD
+                            "value": "0x0"
+                        },
+                        {
+                            "type": "calculation",
+                            "value": "tcp_five_tuple_hash"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0xd"
+=======
+                            "value": "0x1"
+>>>>>>> origin/kx-dev
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "_no_op",
+            "id": 8,
+            "runtime_data": [],
+            "primitives": [
+                {
+<<<<<<< HEAD
+                    "op": "register_read",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "no_proxy_table_entry_val"
+                            ]
+                        },
+                        {
+                            "type": "register_array",
+                            "value": "no_proxy_table"
+                        },
+                        {
+=======
+                    "op": "no_op",
+                    "parameters": []
+                }
+            ]
+        },
+        {
+            "name": "read_syn_proxy_table_entry_value",
+            "id": 9,
+            "runtime_data": [],
+            "primitives": [
+                {
+                    "op": "modify_field_with_hash_based_offset",
+                    "parameters": [
+                        {
+>>>>>>> origin/kx-dev
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "syn_proxy_table_hash_val"
+                            ]
+<<<<<<< HEAD
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "rewrite_mac",
+            "id": 11,
+            "runtime_data": [
+                {
+                    "name": "smac",
+                    "bitwidth": 48
+                }
+            ],
+            "primitives": [
+                {
+                    "op": "modify_field",
+=======
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x0"
+                        },
+                        {
+                            "type": "calculation",
+                            "value": "tcp_five_tuple_hash"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0xd"
+                        }
+                    ]
+                },
+                {
+                    "op": "register_read",
+>>>>>>> origin/kx-dev
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+<<<<<<< HEAD
+                                "ethernet",
+                                "srcAddr"
                             ]
                         },
                         {
@@ -1568,76 +1605,12 @@
                             "value": 0
                         }
                     ]
-                },
-                {
-                    "op": "modify_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "cookie_key2"
-                            ]
-                        },
-                        {
-                            "type": "runtime_data",
-                            "value": 1
-                        }
-                    ]
-                },
-                {
-                    "op": "modify_field_with_hash_based_offset",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "cookie_val1"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x0"
-                        },
-                        {
-                            "type": "calculation",
-                            "value": "syn_cookie_key1_calculation"
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x20"
-                        }
-                    ]
-                },
-                {
-                    "op": "modify_field_with_hash_based_offset",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "cookie_val2"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x0"
-                        },
-                        {
-                            "type": "calculation",
-                            "value": "syn_cookie_key2_calculation"
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x20"
-                        }
-                    ]
                 }
             ]
         },
         {
-            "name": "open_window",
-            "id": 15,
+            "name": "mark_has_syn",
+            "id": 12,
             "runtime_data": [],
             "primitives": [
                 {
@@ -1657,12 +1630,205 @@
                     ]
                 },
                 {
+                    "op": "register_write",
+                    "parameters": [
+                        {
+                            "type": "register_array",
+                            "value": "no_proxy_table"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "no_proxy_table_hash_val"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x1"
+=======
+                                "meta",
+                                "syn_proxy_table_entry_val"
+                            ]
+                        },
+                        {
+                            "type": "register_array",
+                            "value": "syn_proxy_table"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "syn_proxy_table_hash_val"
+                            ]
+>>>>>>> origin/kx-dev
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+<<<<<<< HEAD
+            "name": "confirm_connection",
+            "id": 13,
+=======
+            "name": "read_no_proxy_table_entry_value",
+            "id": 10,
+>>>>>>> origin/kx-dev
+            "runtime_data": [],
+            "primitives": [
+                {
+                    "op": "modify_field_with_hash_based_offset",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "no_proxy_table_hash_val"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x0"
+                        },
+                        {
+                            "type": "calculation",
+                            "value": "tcp_five_tuple_hash"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0xd"
+                        }
+                    ]
+                },
+                {
+                    "op": "register_read",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "no_proxy_table_entry_val"
+                            ]
+                        },
+                        {
+                            "type": "register_array",
+                            "value": "no_proxy_table"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "no_proxy_table_hash_val"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "set_nhop",
+            "id": 11,
+            "runtime_data": [
+                {
+                    "name": "nhop_ipv4",
+                    "bitwidth": 32
+                },
+                {
+                    "name": "port",
+                    "bitwidth": 9
+                }
+            ],
+            "primitives": [
+                {
                     "op": "modify_field",
                     "parameters": [
                         {
                             "type": "field",
                             "value": [
                                 "meta",
+                                "nhop_ipv4"
+                            ]
+                        },
+                        {
+                            "type": "runtime_data",
+                            "value": 0
+                        }
+                    ]
+                },
+                {
+                    "op": "modify_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "standard_metadata",
+                                "egress_spec"
+                            ]
+                        },
+                        {
+                            "type": "runtime_data",
+                            "value": 1
+                        }
+                    ]
+                },
+                {
+                    "op": "add_to_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "ipv4",
+                                "ttl"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "-0x1"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+<<<<<<< HEAD
+            "name": "calculate_syn_cookie_from_client",
+            "id": 14,
+            "runtime_data": [
+=======
+            "name": "open_window",
+            "id": 12,
+            "runtime_data": [],
+            "primitives": [
+>>>>>>> origin/kx-dev
+                {
+                    "name": "key1",
+                    "bitwidth": 32
+                },
+                {
+<<<<<<< HEAD
+                    "name": "key2",
+                    "bitwidth": 32
+                }
+            ],
+            "primitives": [
+                {
+=======
+>>>>>>> origin/kx-dev
+                    "op": "modify_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+<<<<<<< HEAD
+                                "cookie_key1"
+                            ]
+                        },
+                        {
+                            "type": "runtime_data",
+                            "value": 0
+=======
                                 "seq_no_offset"
                             ]
                         },
@@ -1695,10 +1861,25 @@
                                     }
                                 }
                             }
+>>>>>>> origin/kx-dev
                         }
                     ]
                 },
                 {
+<<<<<<< HEAD
+                    "op": "modify_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "cookie_key2"
+                            ]
+                        },
+                        {
+                            "type": "runtime_data",
+                            "value": 1
+=======
                     "op": "subtract",
                     "parameters": [
                         {
@@ -1832,14 +2013,110 @@
                                     }
                                 }
                             }
+>>>>>>> origin/kx-dev
                         }
                     ]
                 }
             ]
         },
         {
+            "name": "set_dmac",
+            "id": 13,
+            "runtime_data": [
+                {
+<<<<<<< HEAD
+                    "op": "modify_field_with_hash_based_offset",
+=======
+                    "name": "dmac",
+                    "bitwidth": 48
+                }
+            ],
+            "primitives": [
+                {
+                    "op": "modify_field",
+>>>>>>> origin/kx-dev
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+<<<<<<< HEAD
+                                "meta",
+                                "cookie_val1"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x0"
+                        },
+                        {
+                            "type": "calculation",
+                            "value": "syn_cookie_key1_calculation"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x20"
+                        }
+                    ]
+                },
+=======
+                                "ethernet",
+                                "dstAddr"
+                            ]
+                        },
+                        {
+                            "type": "runtime_data",
+                            "value": 0
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "mark_foward_normally",
+            "id": 14,
+            "runtime_data": [],
+            "primitives": [
+>>>>>>> origin/kx-dev
+                {
+                    "op": "modify_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+<<<<<<< HEAD
+                                "cookie_val2"
+=======
+                                "to_drop"
+>>>>>>> origin/kx-dev
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x0"
+<<<<<<< HEAD
+                        },
+                        {
+                            "type": "calculation",
+                            "value": "syn_cookie_key2_calculation"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x20"
+=======
+>>>>>>> origin/kx-dev
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+<<<<<<< HEAD
+            "name": "open_window",
+=======
             "name": "sub_delta_to_seq",
-            "id": 16,
+>>>>>>> origin/kx-dev
+            "id": 15,
             "runtime_data": [],
             "primitives": [
                 {
@@ -1859,11 +2136,142 @@
                     ]
                 },
                 {
+<<<<<<< HEAD
+                    "op": "modify_field",
+=======
                     "op": "subtract_from_field",
+>>>>>>> origin/kx-dev
                     "parameters": [
                         {
                             "type": "field",
                             "value": [
+<<<<<<< HEAD
+                                "meta",
+                                "seq_no_offset"
+=======
+                                "tcp",
+                                "seq_no"
+>>>>>>> origin/kx-dev
+                            ]
+                        },
+                        {
+                            "type": "expression",
+                            "value": {
+                                "type": "expression",
+                                "value": {
+                                    "op": ">>",
+                                    "left": {
+<<<<<<< HEAD
+                                        "type": "expression",
+                                        "value": {
+                                            "op": "&",
+                                            "left": {
+                                                "type": "field",
+                                                "value": [
+                                                    "meta",
+                                                    "syn_proxy_table_entry_val"
+                                                ]
+                                            },
+                                            "right": {
+                                                "type": "hexstr",
+                                                "value": "0x7fffffff80"
+                                            }
+                                        }
+=======
+                                        "type": "field",
+                                        "value": [
+                                            "meta",
+                                            "syn_proxy_table_entry_val"
+                                        ]
+>>>>>>> origin/kx-dev
+                                    },
+                                    "right": {
+                                        "type": "hexstr",
+                                        "value": "0x7"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+<<<<<<< HEAD
+                },
+                {
+                    "op": "subtract",
+=======
+                }
+            ]
+        },
+        {
+            "name": "calculate_syn_cookie_from_server",
+            "id": 16,
+            "runtime_data": [
+                {
+                    "name": "key1",
+                    "bitwidth": 32
+                },
+                {
+                    "name": "key2",
+                    "bitwidth": 32
+                }
+            ],
+            "primitives": [
+                {
+                    "op": "modify_field",
+>>>>>>> origin/kx-dev
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+<<<<<<< HEAD
+                                "seq_no_offset"
+                            ]
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "tcp",
+                                "seq_no"
+                            ]
+                        },
+=======
+                                "cookie_key1"
+                            ]
+                        },
+                        {
+                            "type": "runtime_data",
+                            "value": 0
+                        }
+                    ]
+                },
+                {
+                    "op": "modify_field",
+                    "parameters": [
+>>>>>>> origin/kx-dev
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+<<<<<<< HEAD
+                                "seq_no_offset"
+=======
+                                "cookie_key2"
+>>>>>>> origin/kx-dev
+                            ]
+                        },
+                        {
+                            "type": "runtime_data",
+                            "value": 1
+                        }
+                    ]
+                },
+                {
+                    "op": "modify_field_with_hash_based_offset",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+<<<<<<< HEAD
                                 "tcp",
                                 "seq_no"
                             ]
@@ -1875,11 +2283,21 @@
                                 "value": {
                                     "op": ">>",
                                     "left": {
-                                        "type": "field",
-                                        "value": [
-                                            "meta",
-                                            "syn_proxy_table_entry_val"
-                                        ]
+                                        "type": "expression",
+                                        "value": {
+                                            "op": "&",
+                                            "left": {
+                                                "type": "field",
+                                                "value": [
+                                                    "meta",
+                                                    "syn_proxy_table_entry_val"
+                                                ]
+                                            },
+                                            "right": {
+                                                "type": "hexstr",
+                                                "value": "0x7fffffff80"
+                                            }
+                                        }
                                     },
                                     "right": {
                                         "type": "hexstr",
@@ -1887,53 +2305,125 @@
                                     }
                                 }
                             }
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "set_dmac",
-            "id": 17,
-            "runtime_data": [
-                {
-                    "name": "dmac",
-                    "bitwidth": 48
-                }
-            ],
-            "primitives": [
-                {
-                    "op": "modify_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "ethernet",
-                                "dstAddr"
+=======
+                                "meta",
+                                "cookie_val1"
                             ]
                         },
                         {
-                            "type": "runtime_data",
-                            "value": 0
+                            "type": "hexstr",
+                            "value": "0x0"
+                        },
+                        {
+                            "type": "calculation",
+                            "value": "syn_cookie_key1_reverse_calculation"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x20"
+>>>>>>> origin/kx-dev
+                        }
+                    ]
+                },
+                {
+                    "op": "modify_field_with_hash_based_offset",
+                    "parameters": [
+                        {
+<<<<<<< HEAD
+                            "type": "register_array",
+                            "value": "syn_proxy_table"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "syn_proxy_table_hash_val"
+                            ]
+                        },
+                        {
+                            "type": "expression",
+                            "value": {
+                                "type": "expression",
+                                "value": {
+                                    "op": "|",
+                                    "left": {
+                                        "type": "expression",
+                                        "value": {
+                                            "op": "|",
+                                            "left": {
+                                                "type": "expression",
+                                                "value": {
+                                                    "op": "<<",
+                                                    "left": {
+                                                        "type": "field",
+                                                        "value": [
+                                                            "meta",
+                                                            "seq_no_offset"
+                                                        ]
+                                                    },
+                                                    "right": {
+                                                        "type": "hexstr",
+                                                        "value": "0x7"
+                                                    }
+                                                }
+                                            },
+                                            "right": {
+                                                "type": "expression",
+                                                "value": {
+                                                    "op": "<<",
+                                                    "left": {
+                                                        "type": "field",
+                                                        "value": [
+                                                            "standard_metadata",
+                                                            "ingress_port"
+                                                        ]
+                                                    },
+                                                    "right": {
+                                                        "type": "hexstr",
+                                                        "value": "0x1"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "right": {
+                                        "type": "hexstr",
+                                        "value": "0x1"
+                                    }
+                                }
+                            }
+=======
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "cookie_val2"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x0"
+                        },
+                        {
+                            "type": "calculation",
+                            "value": "syn_cookie_key2_reverse_calculation"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x20"
+>>>>>>> origin/kx-dev
                         }
                     ]
                 }
             ]
         },
         {
-            "name": "_no_op",
-            "id": 18,
-            "runtime_data": [],
-            "primitives": [
-                {
-                    "op": "no_op",
-                    "parameters": []
-                }
-            ]
-        },
-        {
+<<<<<<< HEAD
+            "name": "sub_delta_to_seq",
+            "id": 16,
+=======
             "name": "_drop",
-            "id": 19,
+            "id": 17,
+>>>>>>> origin/kx-dev
             "runtime_data": [],
             "primitives": [
                 {
@@ -1975,9 +2465,70 @@
             ]
         },
         {
-            "name": "add_delta_to_ack",
-            "id": 20,
+<<<<<<< HEAD
+            "name": "set_dmac",
+            "id": 17,
+=======
+            "name": "rewrite_mac",
+            "id": 18,
+>>>>>>> origin/kx-dev
+            "runtime_data": [
+                {
+                    "name": "smac",
+                    "bitwidth": 48
+                }
+            ],
+            "primitives": [
+                {
+                    "op": "modify_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "ethernet",
+                                "srcAddr"
+                            ]
+                        },
+                        {
+                            "type": "runtime_data",
+                            "value": 0
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+<<<<<<< HEAD
+            "name": "_no_op",
+            "id": 18,
             "runtime_data": [],
+            "primitives": [
+                {
+                    "op": "no_op",
+                    "parameters": []
+                }
+            ]
+        },
+        {
+            "name": "_drop",
+            "id": 19,
+            "runtime_data": [],
+            "primitives": [
+                {
+                    "op": "modify_field",
+=======
+            "name": "calculate_syn_cookie_from_client",
+            "id": 19,
+            "runtime_data": [
+                {
+                    "name": "key1",
+                    "bitwidth": 32
+                },
+                {
+                    "name": "key2",
+                    "bitwidth": 32
+                }
+            ],
             "primitives": [
                 {
                     "op": "modify_field",
@@ -1986,12 +2537,110 @@
                             "type": "field",
                             "value": [
                                 "meta",
+                                "cookie_key1"
+                            ]
+                        },
+                        {
+                            "type": "runtime_data",
+                            "value": 0
+                        }
+                    ]
+                },
+                {
+                    "op": "modify_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "cookie_key2"
+                            ]
+                        },
+                        {
+                            "type": "runtime_data",
+                            "value": 1
+                        }
+                    ]
+                },
+                {
+                    "op": "modify_field_with_hash_based_offset",
+>>>>>>> origin/kx-dev
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+<<<<<<< HEAD
                                 "to_drop"
+=======
+                                "cookie_val1"
+>>>>>>> origin/kx-dev
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x1"
+                        }
+                    ]
+                },
+                {
+                    "op": "modify_field",
+                    "parameters": [
+                        {
+<<<<<<< HEAD
+                            "type": "field",
+                            "value": [
+                                "ipv4",
+                                "dstAddr"
                             ]
                         },
                         {
                             "type": "hexstr",
                             "value": "0x0"
+=======
+                            "type": "calculation",
+                            "value": "syn_cookie_key1_calculation"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x20"
+>>>>>>> origin/kx-dev
+                        }
+                    ]
+                },
+                {
+<<<<<<< HEAD
+                    "op": "drop",
+                    "parameters": []
+                }
+            ]
+        },
+        {
+            "name": "add_delta_to_ack",
+            "id": 20,
+            "runtime_data": [],
+            "primitives": [
+                {
+                    "op": "modify_field",
+=======
+                    "op": "modify_field_with_hash_based_offset",
+>>>>>>> origin/kx-dev
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+<<<<<<< HEAD
+                                "to_drop"
+=======
+                                "cookie_val2"
+>>>>>>> origin/kx-dev
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x0"
+<<<<<<< HEAD
                         }
                     ]
                 },
@@ -2024,6 +2673,16 @@
                                     }
                                 }
                             }
+=======
+                        },
+                        {
+                            "type": "calculation",
+                            "value": "syn_cookie_key2_calculation"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x20"
+>>>>>>> origin/kx-dev
                         }
                     ]
                 }
@@ -2086,9 +2745,9 @@
                         "sub_delta_to_seq"
                     ],
                     "next_tables": {
-                        "sub_delta_to_seq": "_condition_15"
+                        "sub_delta_to_seq": "_condition_13"
                     },
-                    "base_default_next": "_condition_15"
+                    "base_default_next": "_condition_13"
                 },
                 {
                     "name": "add_delta_to_ack_table",
@@ -2104,9 +2763,9 @@
                         "add_delta_to_ack"
                     ],
                     "next_tables": {
-                        "add_delta_to_ack": "_condition_15"
+                        "add_delta_to_ack": "_condition_13"
                     },
-                    "base_default_next": "_condition_15"
+                    "base_default_next": "_condition_13"
                 },
                 {
                     "name": "check_syn_proxy_table",
@@ -2211,9 +2870,9 @@
                         "open_window"
                     ],
                     "next_tables": {
-                        "open_window": "_condition_15"
+                        "open_window": "_condition_13"
                     },
-                    "base_default_next": "_condition_15"
+                    "base_default_next": "_condition_13"
                 },
                 {
                     "name": "reply_sa_table",
@@ -2229,9 +2888,9 @@
                         "reply_sa"
                     ],
                     "next_tables": {
-                        "reply_sa": "_condition_15"
+                        "reply_sa": "_condition_13"
                     },
-                    "base_default_next": "_condition_15"
+                    "base_default_next": "_condition_13"
                 },
                 {
                     "name": "confirm_connection_table",
@@ -2247,31 +2906,13 @@
                         "confirm_connection"
                     ],
                     "next_tables": {
-                        "confirm_connection": "_condition_15"
+                        "confirm_connection": "_condition_13"
                     },
-                    "base_default_next": "_condition_15"
-                },
-                {
-                    "name": "mark_no_conn_table",
-                    "id": 11,
-                    "match_type": "exact",
-                    "type": "simple",
-                    "max_size": 16384,
-                    "with_counters": false,
-                    "direct_meters": null,
-                    "support_timeout": false,
-                    "key": [],
-                    "actions": [
-                        "mark_no_conn"
-                    ],
-                    "next_tables": {
-                        "mark_no_conn": "_condition_15"
-                    },
-                    "base_default_next": "_condition_15"
+                    "base_default_next": "_condition_13"
                 },
                 {
                     "name": "mark_has_syn_table",
-                    "id": 12,
+                    "id": 11,
                     "match_type": "exact",
                     "type": "simple",
                     "max_size": 16384,
@@ -2283,13 +2924,13 @@
                         "mark_has_syn"
                     ],
                     "next_tables": {
-                        "mark_has_syn": "_condition_15"
+                        "mark_has_syn": "_condition_13"
                     },
-                    "base_default_next": "_condition_15"
+                    "base_default_next": "_condition_13"
                 },
                 {
                     "name": "mark_has_ack_table",
-                    "id": 13,
+                    "id": 12,
                     "match_type": "exact",
                     "type": "simple",
                     "max_size": 16384,
@@ -2301,13 +2942,13 @@
                         "mark_has_ack"
                     ],
                     "next_tables": {
-                        "mark_has_ack": "_condition_15"
+                        "mark_has_ack": "_condition_13"
                     },
-                    "base_default_next": "_condition_15"
+                    "base_default_next": "_condition_13"
                 },
                 {
                     "name": "mark_foward_normally_table",
-                    "id": 14,
+                    "id": 13,
                     "match_type": "exact",
                     "type": "simple",
                     "max_size": 16384,
@@ -2319,13 +2960,13 @@
                         "mark_foward_normally"
                     ],
                     "next_tables": {
-                        "mark_foward_normally": "_condition_15"
+                        "mark_foward_normally": "_condition_13"
                     },
-                    "base_default_next": "_condition_15"
+                    "base_default_next": "_condition_13"
                 },
                 {
                     "name": "ipv4_lpm_table",
-                    "id": 15,
+                    "id": 14,
                     "match_type": "lpm",
                     "type": "simple",
                     "max_size": 1024,
@@ -2354,7 +2995,7 @@
                 },
                 {
                     "name": "forward_table",
-                    "id": 16,
+                    "id": 15,
                     "match_type": "exact",
                     "type": "simple",
                     "max_size": 512,
@@ -2692,7 +3333,7 @@
                         }
                     },
                     "true_next": "_condition_8",
-                    "false_next": "_condition_15"
+                    "false_next": "_condition_13"
                 },
                 {
                     "name": "_condition_8",
@@ -2764,7 +3405,7 @@
                         }
                     },
                     "true_next": "confirm_connection_table",
-                    "false_next": "_condition_15"
+                    "false_next": "_condition_13"
                 },
                 {
                     "name": "_condition_9",
@@ -2787,7 +3428,7 @@
                         }
                     },
                     "true_next": "_condition_10",
-                    "false_next": "_condition_13"
+                    "false_next": "_condition_12"
                 },
                 {
                     "name": "_condition_10",
@@ -2873,44 +3514,11 @@
                         }
                     },
                     "true_next": "mark_has_ack_table",
-                    "false_next": "_condition_12"
+                    "false_next": "_condition_13"
                 },
                 {
                     "name": "_condition_12",
                     "id": 12,
-                    "expression": {
-                        "type": "expression",
-                        "value": {
-                            "op": "==",
-                            "left": {
-                                "type": "expression",
-                                "value": {
-                                    "op": "&",
-                                    "left": {
-                                        "type": "field",
-                                        "value": [
-                                            "tcp",
-                                            "flags"
-                                        ]
-                                    },
-                                    "right": {
-                                        "type": "hexstr",
-                                        "value": "0x1"
-                                    }
-                                }
-                            },
-                            "right": {
-                                "type": "hexstr",
-                                "value": "0x1"
-                            }
-                        }
-                    },
-                    "true_next": "mark_no_conn_table",
-                    "false_next": "_condition_15"
-                },
-                {
-                    "name": "_condition_13",
-                    "id": 13,
                     "expression": {
                         "type": "expression",
                         "value": {
@@ -2924,49 +3532,16 @@
                             },
                             "right": {
                                 "type": "hexstr",
-                                "value": "0xa"
+                                "value": "0x2"
                             }
                         }
                     },
-                    "true_next": "_condition_14",
-                    "false_next": "_condition_15"
+                    "true_next": "mark_foward_normally_table",
+                    "false_next": "_condition_13"
                 },
                 {
-                    "name": "_condition_14",
-                    "id": 14,
-                    "expression": {
-                        "type": "expression",
-                        "value": {
-                            "op": "==",
-                            "left": {
-                                "type": "expression",
-                                "value": {
-                                    "op": "&",
-                                    "left": {
-                                        "type": "field",
-                                        "value": [
-                                            "tcp",
-                                            "flags"
-                                        ]
-                                    },
-                                    "right": {
-                                        "type": "hexstr",
-                                        "value": "0x1"
-                                    }
-                                }
-                            },
-                            "right": {
-                                "type": "hexstr",
-                                "value": "0x1"
-                            }
-                        }
-                    },
-                    "true_next": "mark_has_syn_table",
-                    "false_next": "mark_foward_normally_table"
-                },
-                {
-                    "name": "_condition_15",
-                    "id": 15,
+                    "name": "_condition_13",
+                    "id": 13,
                     "expression": {
                         "type": "expression",
                         "value": {
@@ -2992,11 +3567,11 @@
         {
             "name": "egress",
             "id": 1,
-            "init_table": "_condition_16",
+            "init_table": "_condition_14",
             "tables": [
                 {
                     "name": "send_frame",
-                    "id": 17,
+                    "id": 16,
                     "match_type": "exact",
                     "type": "simple",
                     "max_size": 256,
@@ -3027,8 +3602,8 @@
             "action_profiles": [],
             "conditionals": [
                 {
-                    "name": "_condition_16",
-                    "id": 16,
+                    "name": "_condition_14",
+                    "id": 14,
                     "expression": {
                         "type": "expression",
                         "value": {
