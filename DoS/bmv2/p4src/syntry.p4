@@ -58,6 +58,7 @@ header_type meta_t {
 		// for control flow
 		syn_proxy_status : 1;	// 0 for PROXY_OFF, 1 for PROXY_ON
 		to_drop : 1;
+		in_black_list : 1;
 
 		// seq# offset  
 		seq_no_offset : 32;
@@ -68,7 +69,7 @@ header_type meta_t {
 		cookie_val1 : 32;	// always use val1 first
 		cookie_val2 : 32;
 
-		// for whitelist table
+		// for blacklist table
 		src_ip_hash_val : 12;
 		dst_ip_hash_val : 12;
 		src_ip_entry_val : 2;
@@ -213,6 +214,18 @@ action _drop() {
 		}
 	}
 // }
+//********for mark_in_blacklist_table********
+// {
+	action mark_in_blacklist() {
+		modify_field(meta.in_black_list, TRUE);
+	}
+	table mark_in_blacklist_table {
+		actions {
+			mark_in_blacklist;
+		}
+	}
+// }
+
 //********for check_no_proxy_table********
 // {
 	action read_no_proxy_table_entry_value() {
@@ -498,6 +511,18 @@ action _drop() {
 		}
 	}
 // }
+//********for add_to_blacklist_table********
+// {
+	action add_to_blacklist() {
+		register_write(blacklist_table, meta.src_ip_hash_val, 0x2 | meta.src_ip_entry_val);
+	}
+
+	table add_to_blacklist_table{
+		actions{
+			add_to_blacklist;
+		}
+	}
+// }
 
 //********for ipv4_lpm_table********
 // {
@@ -536,10 +561,17 @@ action _drop() {
 	}
 // }
 
-control whitelist {
-	apply(check_whitelist_table);
+// control whitelist {
+// 	apply(check_whitelist_table);
+// 	if(meta.src_ip_entry_val != 0 or meta.dst_ip_entry_val != 0){
+// 		apply(mark_foward_normally_table);
+// 	}
+// }
+
+control blacklist {
+	apply(check_blacklist_table);
 	if(meta.src_ip_entry_val != 0 or meta.dst_ip_entry_val != 0){
-		apply(mark_foward_normally_table);
+		apply(mark_in_blacklist_table);
 	}
 }
 
@@ -628,38 +660,41 @@ control ingress {
 		// only has syn
 		apply(syn_meter_table);
 	}
-	// whitelist();
-	// if(meta.to_drop == TRUE){
-		// check proxy status
-		apply(check_proxy_status_table);
-		conn_filter();
-	// }
-	
-	if(meta.to_drop == FALSE){
-		// packets size count
-		apply(set_size_count_table);
-		if(meta.hh_size_count_val0 > HH_SIZE_THRESHOLD and 
-			meta.hh_size_count_val1 > HH_SIZE_THRESHOLD){
-			// TODO: Add to blacklist
+	blacklist();
+	if(meta.in_black_list == FALSE){
+		// whitelist();
+		// if(meta.to_drop == TRUE){
+			// check proxy status
+			apply(check_proxy_status_table);
+			conn_filter();
+		// }
+		
+		if(meta.to_drop == FALSE){
+			// packets size count
+			apply(set_size_count_table);
+			// connection count (for each src ip)
+			if(tcp.flags & TCP_FLAG_SYN == TCP_FLAG_SYN){
+				// add 1 to count-min sketch
+				apply(pkt_count_inc_table);
+			} else if(tcp.flags & TCP_FLAG_FIN == TCP_FLAG_FIN){
+				// subtract 1 from count-min sketch
+				apply(pkt_count_dec_table);
+			}
+			// TODO: bug. Could add server addr to blacklist
+			if((meta.hh_size_count_val0 > HH_SIZE_THRESHOLD and 
+				meta.hh_size_count_val1 > HH_SIZE_THRESHOLD)
+				or
+				(meta.hh_conn_count_val0 > HH_CONN_THRESHOLD and 
+				meta.hh_conn_count_val1 > HH_CONN_THRESHOLD)){
+				apply(add_to_blacklist_table);
+			}
+		}else{
+			apply(drop_table);
 		}
-		// connection count (for each src ip)
-		if(tcp.flags & TCP_FLAG_SYN == TCP_FLAG_SYN){
-			// add 1 to count-min sketch
-			apply(pkt_count_inc_table);
-		} else if(tcp.flags & TCP_FLAG_FIN == TCP_FLAG_FIN){
-			// subtract 1 from count-min sketch
-			apply(pkt_count_dec_table);
-		}
-		if(meta.hh_conn_count_val0 > HH_CONN_THRESHOLD and 
-			meta.hh_conn_count_val1 > HH_CONN_THRESHOLD){
-			// TODO: Add to blacklist
-		}
-	}else{
-		apply(drop_table);
+		
+		apply(ipv4_lpm_table);
+		apply(forward_table);
 	}
-	
-	apply(ipv4_lpm_table);
-    apply(forward_table);
 }
 
 

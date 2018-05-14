@@ -47,7 +47,7 @@ field_list syn_cookie_key1_list{
 	meta.cookie_key1;
 }
 field_list_calculation syn_cookie_key1_calculation {
-	input {haitingduode
+	input {
 		syn_cookie_key1_list;
 	}
 	algorithm : crc32;

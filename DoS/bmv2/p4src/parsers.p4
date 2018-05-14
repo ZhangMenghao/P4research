@@ -6,6 +6,7 @@
 // parser: start
 parser start {
 	set_metadata(meta.to_drop, TRUE);
+	set_metadata(meta.in_black_list, FALSE);
 	return  parse_ethernet;
 }
 
