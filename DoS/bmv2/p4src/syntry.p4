@@ -240,6 +240,12 @@ header_type meta_t {
 		syn_proxy_table_hash_val : 13;
 		syn_proxy_table_entry_val : 39;
 
+		// for heavy hitter detector
+		hh_hash_val0:8;//perhaps be 16
+        hh_hash_val1:8;
+        hh_count_val0:32;
+        hh_count_val1:32;
+
 	}
 
 }
@@ -276,6 +282,16 @@ counter valid_ack_counter {
 	type : packets;
 	static : confirm_connection_table;
 	instance_count : 1;
+}
+register hh_hashtable0
+{
+    width: 32;
+    instance_count: 256;
+}
+register hh_hashtable1
+{
+    width:32;
+    instance_count:256;
 }
 //********REGISTERS ENDS********
 
@@ -655,18 +671,34 @@ action _drop() {
 // }
 //********for set_heavy_hitter_count_table********
 // {
+	field_list ip_hash_fields {
+		ipv4.src_addr;
+		ipv4.dst_addr;
+	}
+	field_list_calculation heavy_hitter_hash0{
+		input {
+			ip_hash_fields;
+		}
+		algorithm:csum16;
+		output_width:8;
+	}
+	field_list_calculation heavy_hitter_hash1{
+		input{
+			ip_hash_fields;
+		}
+		algorithm:crc16;
+		output_width:8;
+	}
 	action set_heavy_hitter_count() {
-		modify_field_with_hash_based_offset(custom_metadata.hash_val0, 0,
-											heavy_hitter_hash0, 8);
-		register_read(custom_metadata.count_val0, hashtable0, custom_metadata.hash_val0);
-		add_to_field(custom_metadata.count_val0, ipv4.totalLen);
-		register_write(hashtable0, custom_metadata.hash_val0, custom_metadata.count_val0);
+		modify_field_with_hash_based_offset(meta.hh_hash_val0, 0, heavy_hitter_hash0, 8);
+		register_read(meta.hh_count_val0, hh_hashtable0, meta.hh_hash_val0);
+		add_to_field(meta.hh_count_val0, ipv4.totalLen);
+		register_write(hh_hashtable0, meta.hh_hash_val0, meta.hh_count_val0);
 
-		modify_field_with_hash_based_offset(custom_metadata.hash_val1, 0,
-											heavy_hitter_hash1, 8);
-		register_read(custom_metadata.count_val1, hashtable1, custom_metadata.hash_val1);
-		add_to_field(custom_metadata.count_val1, ipv4.totalLen);
-		register_write(hashtable1, custom_metadata.hash_val1, custom_metadata.count_val1);
+		modify_field_with_hash_based_offset(meta.hh_count_val1, 0, heavy_hitter_hash1, 8);
+		register_read(meta.hh_count_val1, hh_hashtable1, meta.hh_count_val1);
+		add_to_field(meta.hh_count_val1, ipv4.totalLen);
+		register_write(hh_hashtable1, meta.hh_hash_val1, meta.hh_count_val1);
 	}
 
 	table set_heavy_hitter_count_table{
@@ -817,8 +849,8 @@ control ingress {
 	if(meta.to_drop == FALSE){
 		// TODO: next steps (detect packet size & num from each source ip)
 		apply(set_heavy_hitter_count_table);
-		if(custom_metadata.count_val0 > HHTHRESHOLD and 
-			custom_metadata.count_val1 > HHTHRESHOLD){
+		if(meta.hh_count_val0 > HHTHRESHOLD and 
+			meta.hh_count_val1 > HHTHRESHOLD){
 				
 		}
 	}else{
