@@ -1,4 +1,3 @@
-
 // for syn proxy
 #define PROXY_OFF 0
 #define PROXY_ON 1
@@ -30,167 +29,9 @@
 #define VALID 0x1
 
 
-//********
-//********HEADERS********
-//********
-header_type ethernet_t {
-	fields {
-		dst_addr : 48;
-		src_addr : 48;
-		etherType : 16;
-	}
-}
-
-header_type ipv4_t {
-	fields {
-		version : 4;
-		ihl : 4;
-		diffserv : 8;
-		totalLen : 16;
-		identification : 16;
-		flags : 3;
-		fragOffset : 13;
-		ttl : 8;
-		protocol : 8;
-		hdrChecksum : 16;
-		src_addr : 32;
-		dst_addr: 32;
-	}
-} 
-
-header_type tcp_t {
-	fields {
-		srcPort : 16;
-		dstPort : 16;
-		seq_no : 32;
-		ack_no : 32;
-		dataOffset : 4;
-        res : 6;
-		flags : 6;	 
-        window : 16;
-        checksum : 16;
-        urgentPtr : 16;
-    }
-}
-
-// header cpu_header_t cpu_header;
-header ethernet_t ethernet;
-header ipv4_t ipv4;
-header tcp_t tcp;
-//********HEADERS END********
-
-
-
-//********
-//********PARSERS********
-//********
-
-// parser: start
-parser start {
-	set_metadata(meta.to_drop, TRUE);
-	return  parse_ethernet;
-}
-
-#define ETHERTYPE_IPV4 0x0800
-
-// parser: ethernet
-parser parse_ethernet {
-	extract(ethernet);
-	set_metadata(meta.eth_da,ethernet.dst_addr);
-	set_metadata(meta.eth_sa,ethernet.src_addr);
-	return select(latest.etherType) {
-		ETHERTYPE_IPV4 : parse_ipv4;
-		default: ingress;
-	}
-}
-
-// checksum: ipv4
-field_list ipv4_checksum_list {
-	ipv4.version;
-	ipv4.ihl;
-	ipv4.diffserv;
-	ipv4.totalLen;
-	ipv4.identification;
-	ipv4.flags;
-	ipv4.fragOffset;
-	ipv4.ttl;
-	ipv4.protocol;
-	ipv4.src_addr;
-	ipv4.dst_addr;
-}
-
-field_list_calculation ipv4_checksum {
-	input {
-		ipv4_checksum_list;
-	}
-	algorithm : csum16;
-	output_width : 16;
-}
-
-calculated_field ipv4.hdrChecksum  {
-	verify ipv4_checksum;
-	update ipv4_checksum;
-}
-
-#define IP_PROT_TCP 0x06
-
-// parser: ipv4
-parser parse_ipv4 {
-	extract(ipv4);
-	
-	set_metadata(meta.ipv4_sa, ipv4.src_addr);
-	set_metadata(meta.ipv4_da, ipv4.dst_addr);
-	set_metadata(meta.tcp_length, ipv4.totalLen - 20);	
-	return select(ipv4.protocol) {
-		IP_PROT_TCP : parse_tcp;
-		default: ingress;
-	}
-}
-
-// checksum: tcp
-field_list tcp_checksum_list {
-        ipv4.src_addr;
-        ipv4.dst_addr;
-        8'0;
-        ipv4.protocol;
-        meta.tcp_length;
-        tcp.srcPort;
-        tcp.dstPort;
-        tcp.seq_no;
-        tcp.ack_no;
-        tcp.dataOffset;
-        tcp.res;
-        tcp.flags; 
-        tcp.window;
-        tcp.urgentPtr;
-        payload;
-}
-
-field_list_calculation tcp_checksum {
-    input {
-        tcp_checksum_list;
-    }
-    algorithm : csum16;
-    output_width : 16;
-}
-
-calculated_field tcp.checksum {
-    verify tcp_checksum if(valid(tcp));
-    update tcp_checksum if(valid(tcp));
-}
-
-// parser: tcp
-parser parse_tcp {
-	extract(tcp);
-	set_metadata(meta.tcp_sp, tcp.srcPort);
-	set_metadata(meta.tcp_dp, tcp.dstPort);
-	// set_metadata(meta.tcp_flags, tcp.flags);
-	set_metadata(meta.tcp_seq_no, tcp.seq_no);
-	set_metadata(meta.tcp_ack_no, tcp.ack_no);
-	return ingress;
-}
-//********PARSERS END********
-
+#include "headers.p4"
+#include "parsers.p4"
+#include "hashes.p4"
 
 //********
 //********METADATA********
@@ -263,6 +104,10 @@ register whitelist_table {
 	width : 2;
 	instance_count : 4096;
 }
+register blacklist_table {
+	width : 2;
+	instance_count : 4096;
+}
 register no_proxy_table {
 	width : 2;
 	instance_count : 8192;
@@ -273,17 +118,6 @@ register syn_proxy_table {
 	*/
 	width : 39; // 32 bit offset + 6 bit port + 1 bit is_valid
 	instance_count : 8192;
-}
-counter syn_counter {
-	type : packets;
-	// static : reply_sa_table;
-	static : syn_meter_table;
-	instance_count : 1;
-}
-counter valid_ack_counter {
-	type : packets;
-	static : confirm_connection_table;
-	instance_count : 1;
 }
 register hh_size_hashtable0
 {
@@ -305,23 +139,21 @@ register hh_conn_hashtable1
     width:32;
     instance_count:256;
 }
+counter syn_counter {
+	type : packets;
+	// static : reply_sa_table;
+	static : syn_meter_table;
+	instance_count : 1;
+}
+counter valid_ack_counter {
+	type : packets;
+	static : confirm_connection_table;
+	instance_count : 1;
+}
 //********REGISTERS ENDS********
 
 
-field_list tcp_five_tuple_list{
-	ipv4.src_addr;
-	ipv4.dst_addr;
-	tcp.srcPort;
-	tcp.dstPort;
-	ipv4.protocol;
-}
-field_list_calculation tcp_five_tuple_hash {
-	input {
-		tcp_five_tuple_list;
-	}
-	algorithm : csum16;
-	output_width : 16;
-}
+
 
 action _no_op(){
 	no_op();
@@ -355,26 +187,6 @@ action _drop() {
 // }
 //********for check_whitelist_table********
 // {
-	field_list src_ip_list {
-		ipv4.src_addr;
-	}
-	field_list_calculation src_ip_hash {
-		input {
-			src_ip_list;
-		}
-		algorithm : crc16;
-		output_width : 16;
-	}
-	field_list dst_ip_list {
-		ipv4.dst_addr;
-	}
-	field_list_calculation dst_ip_hash {
-		input {
-			dst_ip_list;
-		}
-		algorithm : crc16;
-		output_width : 16;
-	}
 	action read_whitelist_entry_value() {
 		modify_field_with_hash_based_offset(meta.src_ip_hash_val, 0, src_ip_hash, 12);
 		register_read(meta.src_ip_entry_val, whitelist_table, meta.src_ip_hash_val);
@@ -384,6 +196,20 @@ action _drop() {
 	table check_whitelist_table {
 		actions {
 			read_whitelist_entry_value;
+		}
+	}
+// }
+//********for check_blacklist_table********
+// {
+	action read_blacklist_entry_value() {
+		modify_field_with_hash_based_offset(meta.src_ip_hash_val, 0, src_ip_hash, 12);
+		register_read(meta.src_ip_entry_val, whitelist_table, meta.src_ip_hash_val);
+		modify_field_with_hash_based_offset(meta.dst_ip_hash_val, 0, dst_ip_hash, 12);
+		register_read(meta.dst_ip_entry_val, whitelist_table, meta.dst_ip_hash_val);
+	}
+	table check_blacklist_table {
+		actions {
+			read_blacklist_entry_value;
 		}
 	}
 // }
@@ -437,72 +263,6 @@ action _drop() {
 // }
 //********for calculate_syn_cookie_table********
 // {
-	field_list syn_cookie_key1_list{
-		ipv4.src_addr;
-		ipv4.dst_addr;
-		tcp.srcPort;
-		tcp.dstPort;
-		ipv4.protocol;
-		meta.cookie_key1;
-	}
-	field_list_calculation syn_cookie_key1_calculation {
-		input {
-			syn_cookie_key1_list;
-		}
-		algorithm : crc32;
-		output_width : 32;
-	}
-
-
-	field_list syn_cookie_key2_list{
-		ipv4.src_addr;
-		ipv4.dst_addr;
-		tcp.srcPort;
-		tcp.dstPort;
-		ipv4.protocol;
-		meta.cookie_key2;
-	}
-	field_list_calculation syn_cookie_key2_calculation {
-		input {
-			syn_cookie_key2_list;
-		}
-		algorithm : crc32;
-		output_width : 32;
-	}
-
-
-	field_list syn_cookie_key1_reverse_list{
-		ipv4.dst_addr;
-		ipv4.src_addr;
-		tcp.dstPort;
-		tcp.srcPort;
-		ipv4.protocol;
-		meta.cookie_key1;
-	}
-	field_list_calculation syn_cookie_key1_reverse_calculation {
-		input {
-			syn_cookie_key1_reverse_list;
-		}
-		algorithm : crc32;
-		output_width : 32;
-	}
-
-
-	field_list syn_cookie_key2_reverse_list{
-		ipv4.dst_addr;
-		ipv4.src_addr;
-		tcp.dstPort;
-		tcp.srcPort;
-		ipv4.protocol;
-		meta.cookie_key2;
-	}
-	field_list_calculation syn_cookie_key2_reverse_calculation {
-		input {
-			syn_cookie_key2_reverse_list;
-		}
-		algorithm : crc32;
-		output_width : 32;
-	}
 	// use a simpler version of syn-cookie
 	// timestamp(for connection timeout), MSS(for ack packet reconstruction) not implemented
 	action calculate_syn_cookie_from_client(key1, key2){
@@ -683,24 +443,6 @@ action _drop() {
 // }
 //********for set_size_count_table********
 // {
-	field_list ip_hash_fields {
-		ipv4.src_addr;
-		// ipv4.dst_addr;
-	}
-	field_list_calculation heavy_hitter_hash0{
-		input {
-			ip_hash_fields;
-		}
-		algorithm:csum16;
-		output_width:8;
-	}
-	field_list_calculation heavy_hitter_hash1{
-		input{
-			ip_hash_fields;
-		}
-		algorithm:crc16;
-		output_width:8;
-	}
 	action pkt_size_count() {
 		modify_field_with_hash_based_offset(meta.hh_hash_val0, 0, heavy_hitter_hash0, 8);
 		register_read(meta.hh_size_count_val0, hh_size_hashtable0, meta.hh_hash_val0);
