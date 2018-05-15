@@ -9,3 +9,5 @@
 #png
 *.png
 *.json
+
+.vscode/
