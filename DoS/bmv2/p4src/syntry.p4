@@ -40,8 +40,8 @@
 header_type meta_t {
 	fields {
 		// ethernet information
-		eth_sa:48;		// eth src addr
-		eth_da:48;		// eth des addr
+		eth_sa : 48;		// eth src addr
+		eth_da : 48;		// eth des addr
 		// ip information
         ipv4_sa : 32;	// ipv4 src addr
         ipv4_da : 32;	// ipv4 des addr
@@ -69,11 +69,13 @@ header_type meta_t {
 		cookie_val1 : 32;	// always use val1 first
 		cookie_val2 : 32;
 
-		// for blacklist table
+		// for whitelist/blacklist table
 		src_ip_hash_val : 12;
 		dst_ip_hash_val : 12;
-		src_ip_entry_val : 2;
-		dst_ip_entry_val : 2;
+		bl_src_ip_entry_val : 2;
+		bl_dst_ip_entry_val : 2;
+		wl_src_ip_entry_val : 2;
+		wl_dst_ip_entry_val : 2;
 
 		// for check_no_proxy_table
 		no_proxy_table_hash_val : 13;
@@ -190,9 +192,9 @@ action _drop() {
 // {
 	action read_whitelist_entry_value() {
 		modify_field_with_hash_based_offset(meta.src_ip_hash_val, 0, src_ip_hash, 12);
-		register_read(meta.src_ip_entry_val, whitelist_table, meta.src_ip_hash_val);
+		register_read(meta.wl_src_ip_entry_val, whitelist_table, meta.src_ip_hash_val);
 		modify_field_with_hash_based_offset(meta.dst_ip_hash_val, 0, dst_ip_hash, 12);
-		register_read(meta.dst_ip_entry_val, whitelist_table, meta.dst_ip_hash_val);
+		register_read(meta.wl_dst_ip_entry_val, whitelist_table, meta.dst_ip_hash_val);
 	}
 	table check_whitelist_table {
 		actions {
@@ -204,9 +206,9 @@ action _drop() {
 // {
 	action read_blacklist_entry_value() {
 		modify_field_with_hash_based_offset(meta.src_ip_hash_val, 0, src_ip_hash, 12);
-		register_read(meta.src_ip_entry_val, whitelist_table, meta.src_ip_hash_val);
+		register_read(meta.bl_src_ip_entry_val, whitelist_table, meta.src_ip_hash_val);
 		modify_field_with_hash_based_offset(meta.dst_ip_hash_val, 0, dst_ip_hash, 12);
-		register_read(meta.dst_ip_entry_val, whitelist_table, meta.dst_ip_hash_val);
+		register_read(meta.bl_dst_ip_entry_val, whitelist_table, meta.dst_ip_hash_val);
 	}
 	table check_blacklist_table {
 		actions {
@@ -434,7 +436,7 @@ action _drop() {
 		modify_field(meta.to_drop, FALSE);
 		register_write(no_proxy_table, meta.no_proxy_table_hash_val, CONN_HAS_ACK);
 		// write into whitelist
-		register_write(whitelist_table, meta.src_ip_hash_val, 0x2 | meta.src_ip_entry_val);
+		register_write(whitelist_table, meta.src_ip_hash_val, 0x2 | meta.wl_src_ip_entry_val);
 
 	}
 	table mark_has_ack_table {
@@ -514,7 +516,7 @@ action _drop() {
 //********for add_to_blacklist_table********
 // {
 	action add_to_blacklist() {
-		register_write(blacklist_table, meta.src_ip_hash_val, 0x2 | meta.src_ip_entry_val);
+		register_write(blacklist_table, meta.src_ip_hash_val, 0x2 | meta.bl_src_ip_entry_val);
 	}
 
 	table add_to_blacklist_table{
@@ -561,19 +563,6 @@ action _drop() {
 	}
 // }
 
-// control whitelist {
-// 	apply(check_whitelist_table);
-// 	if(meta.src_ip_entry_val != 0 or meta.dst_ip_entry_val != 0){
-// 		apply(mark_foward_normally_table);
-// 	}
-// }
-
-control blacklist {
-	apply(check_blacklist_table);
-	if(meta.src_ip_entry_val != 0 or meta.dst_ip_entry_val != 0){
-		apply(mark_in_blacklist_table);
-	}
-}
 
 control syn_proxy {
 	// syn proxy on
@@ -660,14 +649,19 @@ control ingress {
 		// only has syn
 		apply(syn_meter_table);
 	}
-	blacklist();
+	apply(check_blacklist_table);
+	if(meta.bl_src_ip_entry_val != 0 or meta.bl_dst_ip_entry_val != 0){
+		apply(mark_in_blacklist_table);
+	}
 	if(meta.in_black_list == FALSE){
-		// whitelist();
-		// if(meta.to_drop == TRUE){
+		apply(check_whitelist_table);
+		if(meta.wl_src_ip_entry_val != 0 or meta.wl_dst_ip_entry_val != 0){
+			apply(mark_foward_normally_table);
+		}else {
 			// check proxy status
 			apply(check_proxy_status_table);
 			conn_filter();
-		// }
+		}
 		
 		if(meta.to_drop == FALSE){
 			// packets size count

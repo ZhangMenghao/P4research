@@ -15,6 +15,7 @@ proxy_status_table_name = 'check_proxy_status_table'
 proxy_on_action_name = 'turn_on_proxy'
 proxy_off_action_name = 'turn_off_proxy'
 blacklist_register_name = 'blacklist_table'
+whitelist_register_name = 'whitelist_table'
 proxy_status = 1
 
 def send_to_CLI(cmd):
@@ -38,7 +39,7 @@ def counter_read(counter_name, index):
 
 def table_reset_default(table_name):
     return send_to_CLI('table_reset_default ' + table_name)
-
+blacklist_register_name
 def table_set_default(table_name, default_action_name):
     return send_to_CLI('table_set_default ' + table_name + ' ' + default_action_name)
 
@@ -113,6 +114,18 @@ def update_black_list(rows=4096):
                 else:
                     register_write(blacklist_register_name, i, 0)
 
+def update_white_list(rows=4096):
+    blacklist_result = 0 * rows
+    for i in range(0, rows):
+        register_result = register_read(whitelist_register_name, i)
+        pattern = re.compile(blacklist_register_name + '\[\d+\]=\s*(\d+)')
+            match = pattern.search(register_result)
+            if(match):
+                blacklist_result[i] = match.group(1)
+                if blacklist_result[i] >= 2: # 10 or 11
+                    register_write(blacklist_register_name, i, 1)
+                else:
+                    register_write(blacklist_register_name, i, 0)
 def main():
     global proxy_status
     listen_interval = 0.5
@@ -120,6 +133,7 @@ def main():
     while True:
         last_counter_val = check_syn_and_ack_number(listen_interval, last_counter_val)
         update_black_list()
+        update_white_list()
         time.sleep(listen_interval)
     
 
