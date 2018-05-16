@@ -43,12 +43,12 @@ fields {
 	eth_sa : 48;		// eth src addr
 	eth_da : 48;		// eth des addr
 	// ip information
-        ipv4_sa : 32;	// ipv4 src addr
-        ipv4_da : 32;	// ipv4 des addr
+	ipv4_sa : 32;	// ipv4 src addr
+	ipv4_da : 32;	// ipv4 des addr
 	// tcp information
-        tcp_sp : 16;	// tcp src port
-        tcp_dp : 16;	// tcp des port
-        tcp_length : 16;	// tcp packet length
+	tcp_sp : 16;	// tcp src port
+	tcp_dp : 16;	// tcp des port
+	tcp_length : 16;	// tcp packet length
 	tcp_ack_no:32;
 	tcp_seq_no:32;
 
@@ -129,7 +129,7 @@ register hh_size_hashtable0
 }
 register hh_size_hashtable1
 {
-    width:32;
+    width : 32;
     instance_count:256;
 }
 register hh_conn_hashtable0
@@ -139,7 +139,7 @@ register hh_conn_hashtable0
 }
 register hh_conn_hashtable1
 {
-    width:32;
+    width : 32;
     instance_count:256;
 }
 counter syn_counter {
@@ -515,7 +515,7 @@ table set_size_count_table{
 }
 
 
-//********for pkt_count_inc_table********
+//********for conn_count_inc_table********
 
 
 action pkt_count_inc() {
@@ -528,14 +528,14 @@ action pkt_count_inc() {
 	register_write(hh_conn_hashtable1, meta.hh_hash_val1, meta.hh_conn_count_val1);
 }
 
-table pkt_count_inc_table{
+table conn_count_inc_table{
 	actions{
 		pkt_count_inc;
 	}
 }
 
 
-//********for pkt_count_dec_table********
+//********for conn_count_dec_table********
 
 
 action pkt_count_dec() {
@@ -548,7 +548,7 @@ action pkt_count_dec() {
 	register_write(hh_conn_hashtable1, meta.hh_hash_val1, meta.hh_conn_count_val1);
 }
 
-table pkt_count_dec_table{
+table conn_count_dec_table{
 	actions{
 		pkt_count_dec;
 	}
@@ -717,10 +717,10 @@ if(meta.in_black_list == FALSE){
 		// connection count (for each src ip)
 		if(tcp.flags & TCP_FLAG_SYN == TCP_FLAG_SYN){
 			// add 1 to count-min sketch
-			apply(pkt_count_inc_table);
+			apply(conn_count_inc_table);
 		} else if(tcp.flags & TCP_FLAG_FIN == TCP_FLAG_FIN){
 			// subtract 1 from count-min sketch
-			apply(pkt_count_dec_table);
+			apply(conn_count_dec_table);
 		}
 		// TODO: bug. Could add server addr to blacklist
 		if((meta.hh_size_count_val0 > HH_SIZE_THRESHOLD and 
