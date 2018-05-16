@@ -1,7 +1,9 @@
+// The tofino directory is in p4-compilers-4.1.1.15/p4_lib/tofino/
+
 #include "tofino/stateful_alu_blackbox.p4"
 #include "tofino/intrinsic_metadata.p4"
-#include "headers.p4"
-#include "parser.p4"
+#include "include/headers.p4"
+#include "include/parser.p4"
 
 header_type meta_t {
 	fields {
@@ -20,7 +22,8 @@ header_type meta_t {
 		out_port:8;
 		tcp_syn:1;
 		tcp_ack:1;
-		reply_type:4;//0 drop  1 syn/ack back to h1  02 syn to h2  03 send h2 ack  04 resubmit 05 forward the packet as normal  
+		reply_type:4;
+		//0 drop  1 syn/ack back to h1  02 syn to h2  03 send h2 ack  04 resubmit 05 forward the packet as normal  
 		tcp_synack:1;
 		tcp_psh:1;
 		tcp_rst:1;
