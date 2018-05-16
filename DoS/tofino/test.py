@@ -79,10 +79,19 @@ class SYNProxyTest(pd_base_tests.ThriftInterfaceDataPlane):
 
 	self.client.session_check_set_default_action_lookup_session_map(self.sess_hdl,self.dev_tgt);
 	self.client.session_check_reverse_set_default_action_lookup_session_map_reverse(self.sess_hdl,self.dev_tgt);
+	self.client.set_heavy_hitter_count_table_1_set_default_action_set_heavy_hitter_count_1(self.sess_hdl,self.dev_tgt);
+	self.client.set_heavy_hitter_count_table_2_set_default_action_set_heavy_hitter_count_2(self.sess_hdl,self.dev_tgt);
 
         self.conn_mgr.complete_operations(self.sess_hdl)
+	self.client.hash_fields_register(self.sess_hdl,self.dev)
 	while(True):
-		pass
+		digests = self.client.hash_fields_get_digest(self.sess_hdl)
+		if len(digests.msg) == 0:
+			continue	
+		for digest_entry in digests.msg:
+			print i32_to_ipv4Addr(digest_entry.ipv4_srcAddr)
+		self.client.hash_fields_digest_notify_ack(self.sess_hdl,digests.msg_ptr)
+			
 	'''
         print("Sending packet with DST MAC=%s into port %d" %
               (mac_da, ingress_port))

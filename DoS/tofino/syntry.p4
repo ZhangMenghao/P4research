@@ -2,6 +2,8 @@
 
 #include "tofino/stateful_alu_blackbox.p4"
 #include "tofino/intrinsic_metadata.p4"
+#include "tofino/constants.p4"
+
 #include "include/headers.p4"
 #include "include/parser.p4"
 
@@ -41,6 +43,8 @@ header_type meta_t {
 		tcp_session_is_ACK: 8;// this session has sent a ack to switchi
 		tcp_session_h2_reply_sa:8;// h2 in this session has sent a sa to switch
 		h1_seq : 32;
+		over_thres1: 1;
+		over_thres2: 1;
 		
 	}
 
@@ -208,6 +212,7 @@ register dstip_pktcount {
 	
 
 action _drop() {
+	generate_digest(FLOW_LRN_DIGEST_RCVR,hash_fields);
 	drop();
 }
 //************************************for session_check table************************************
@@ -328,7 +333,7 @@ action inbound_transformation()
 	modify_field(ipv4.diffserv,meta.tcp_session_map_index);
 	modify_field(ipv4.identification,meta.reverse_tcp_session_map_index);
 
-	modify_field(ig_intr_md_for_tm.ucast_egress_port, 136);
+	modify_field(ig_intr_md_for_tm.ucast_egress_port, 128);
 }
 
 table inbound_tran_table2
@@ -351,7 +356,7 @@ table inbound_tran_table
 action outbound_transformation()
 {
 	subtract_from_field(tcp.seqNo,meta.tcp_h2seq);
-	modify_field(ig_intr_md_for_tm.ucast_egress_port, 128);
+	modify_field(ig_intr_md_for_tm.ucast_egress_port, 136);
 }
 
 table outbound_tran_table
@@ -457,7 +462,7 @@ action sendh2ack()
 	modify_field(ethernet.srcAddr, meta.eth_da);
 		
 
-	modify_field(ig_intr_md_for_tm.ucast_egress_port, 136);
+	modify_field(ig_intr_md_for_tm.ucast_egress_port, 128);
 
 }
 
@@ -476,7 +481,7 @@ action sendh2syn()
 
 	add_to_field(tcp.checksum,0x10);
 	
-	modify_field(ig_intr_md_for_tm.ucast_egress_port, 136);
+	modify_field(ig_intr_md_for_tm.ucast_egress_port, 128);
 }
 
 //00 noreply  01 syn/ack back to h1  02 syn to h2  03 undifined  04 resubmit 05forward the packet 
@@ -497,31 +502,97 @@ table forward_table{
 	}
 }
 
+/*** cm sketch ***/
+
+field_list hash_fields {
+    ipv4.srcAddr;
+}
+field_list_calculation heavy_hitter_hash1 {
+    input { 
+        hash_fields;
+    }
+    algorithm : crc16;
+    output_width : 16;
+}
+
+field_list_calculation heavy_hitter_hash2 {
+    input { 
+        hash_fields;
+    }
+    algorithm : crc32;
+    output_width : 16;
+}
+
+register heavy_hitter_counter1{
+    width : 32;
+    instance_count : 65536;
+}
+
+register heavy_hitter_counter2{
+    width : 32;
+    instance_count : 65536;
+}
+
+blackbox stateful_alu cmsketch1{
+    reg: heavy_hitter_counter1;
+    condition_lo:register_lo-5>0;
+    update_lo_1_value: register_lo+1;
+    output_predicate: condition_lo;
+    output_value: combined_predicate;
+    output_dst: meta.over_thres1;
+    initial_register_lo_value: 0;
+}
+
+blackbox stateful_alu cmsketch2{
+    reg: heavy_hitter_counter2;
+    condition_lo:register_lo-5>0;
+    update_lo_1_value: register_lo+1;
+    output_predicate: condition_lo;
+    output_value: combined_predicate;
+    output_dst: meta.over_thres2;
+    initial_register_lo_value: 0;
+}
+
+action set_heavy_hitter_count_1(){
+    cmsketch1.execute_stateful_alu_from_hash(heavy_hitter_hash1);
+}
+
+action set_heavy_hitter_count_2(){
+    cmsketch2.execute_stateful_alu_from_hash(heavy_hitter_hash2);
+}
+
+//@pragma stage 1
+table set_heavy_hitter_count_table_1 {
+    actions {
+        set_heavy_hitter_count_1;
+    }
+    size: 1;
+}
+//@pragma stage 1
+table set_heavy_hitter_count_table_2 {
+    actions {
+        set_heavy_hitter_count_2;
+    }
+    size: 1;
+}
+
+
+
 control ingress {
-	if(ig_intr_md.ingress_port == 128){
+	if(ig_intr_md.ingress_port == 136){
 		apply(session_check);
 	}
 	else {
 		apply(session_check_reverse);
 	}
-/*
-	apply(read_state_SYN);
-
-	if(meta.tcp_session_is_SYN == 1) {
-		apply(read_state_ACK);
-	}
-	if(meta.tcp_session_is_ACK == 1){
-		apply(read_state_h2);
-	}
-*/
 
 	if(meta.tcp_syn == 1 and meta.tcp_ack == 1){
 		apply(write_seq);
 	}
-	else if (meta.in_port == 128){
+	else if (meta.in_port == 136){
 		apply(read_seq);
 	}
-	else if (meta.in_port == 136){
+	else if (meta.in_port == 128){
 		apply(read_seq_reverse);
 	}
 
@@ -529,7 +600,7 @@ control ingress {
 	{
 		apply(session_init_table);
 	}
-	else if (meta.tcp_syn == 0 and meta.tcp_ack == 1 and meta.tcp_h2seq == 0/* and meta.tcp_session_is_SYN == 1*/)
+	else if (meta.tcp_syn == 0 and meta.tcp_ack == 1 and meta.tcp_h2seq == 0)
 	{
 		apply(session_complete_table);
 	}
@@ -537,18 +608,25 @@ control ingress {
 	{
 		apply(relay_session_table); 
 	}
-
 	else{
-		if (meta.in_port == 136 )
+		if (meta.in_port == 128 )
 		{
 			apply(outbound_tran_table);
 		}
-		else if	(meta.in_port == 128)
+		else if	(meta.in_port == 136)
 		{
 			apply(inbound_tran_table);
 			//apply(inbound_tran_table2);
 		}
 	}
+	
+	apply(set_heavy_hitter_count_table_1);
+	apply(set_heavy_hitter_count_table_2);
+	if(meta.over_thres1 == 1 and meta.over_thres2 == 1){	
+		apply(drop_table);
+	}
+
+	
 
 }
 control egress {
