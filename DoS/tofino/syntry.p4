@@ -34,8 +34,8 @@ header_type meta_t {
 		tcp_h1seq:32;
 		tcp_ackNo:32;
 		tcp_h2seq:32;
-		tcp_session_map_index :  8;
-		reverse_tcp_session_map_index :  8;
+		tcp_session_map_index :  16;
+		reverse_tcp_session_map_index :  16;
 		dstip_pktcount_map_index: 8;
 		tcp_session_id : 16;
 		dstip_pktcount:32;// how many packets have been sent to this dst IP address	 
@@ -51,7 +51,6 @@ header_type meta_t {
 }
 
 metadata meta_t meta;
-
 field_list l3_hash_fields {
 
 	ipv4.srcAddr;   
@@ -66,7 +65,7 @@ field_list_calculation tcp_session_map_hash {
 		l3_hash_fields;
 	}
 	algorithm: crc16;
-	output_width: 8;
+	output_width: 16;
 
 }
 field_list reverse_l3_hash_fields {
@@ -87,7 +86,7 @@ field_list_calculation reverse_tcp_session_map_hash{
 		reverse_l3_hash_fields;
 	}
 	algorithm:crc16;
-	output_width:8;
+	output_width:16;
 	
 }	
 
@@ -101,7 +100,7 @@ field_list_calculation dstip_map_hash {
 		dstip_hash_fields;
 	}
 	algorithm:crc16;
-	output_width:8;
+	output_width:16;
 }
 
 
@@ -115,7 +114,7 @@ field_list resubmit_FL {
 register tcp_session_is_SYN {
 	//TOFINO: Width cannot be 1 or condition_lo will not be supported
 	width : 8;
-	instance_count: 256;
+	instance_count: 65536;
 }
 
 blackbox stateful_alu read_tcp_session_is_SYN{
@@ -134,7 +133,7 @@ blackbox stateful_alu read_tcp_session_is_SYN{
 
 register tcp_session_is_ACK {
 	width : 8;
-	instance_count:256;
+	instance_count:65536;
 }
 
 blackbox stateful_alu read_tcp_session_is_ACK{
@@ -169,13 +168,13 @@ blackbox stateful_alu write_tcp_session_h2_reply_sa{
 
 register h1_seq{
 	width : 32;
-	instance_count: 256;
+	instance_count: 65536;
 }
 
 //TOFINO: We have to separate read and write, because we cannot refer to more than 3 metadata in a SALU.
 register h2_seq{
 	width : 32;
-	instance_count: 256;
+	instance_count: 65536;
 }
 blackbox stateful_alu read_h2_seq{
 	reg : h2_seq;
@@ -213,19 +212,19 @@ register dstip_pktcount {
 
 action _drop() {
 	generate_digest(FLOW_LRN_DIGEST_RCVR,hash_fields);
-	drop();
+	//drop();
 }
 //************************************for session_check table************************************
 action lookup_session_map()
 {
 	modify_field(meta.in_port,ig_intr_md.ingress_port);
-	modify_field_with_hash_based_offset(meta.tcp_session_map_index,0,tcp_session_map_hash, 8);
+	modify_field_with_hash_based_offset(meta.tcp_session_map_index,0,tcp_session_map_hash, 65536);
 }
 
 action lookup_session_map_reverse()
 {
 	modify_field(meta.in_port,ig_intr_md.ingress_port);
-	modify_field_with_hash_based_offset(meta.reverse_tcp_session_map_index,0,reverse_tcp_session_map_hash, 8);
+	modify_field_with_hash_based_offset(meta.reverse_tcp_session_map_index,0,reverse_tcp_session_map_hash, 65536);
 }
 table session_check {
 	actions { lookup_session_map;}
@@ -234,52 +233,23 @@ table session_check {
 table session_check_reverse {
 	actions { lookup_session_map_reverse;}
 }
-table read_state_SYN {
-	actions {read_state_SYN_action; }
-}
-action read_state_SYN_action(){
-	read_tcp_session_is_SYN.execute_stateful_alu(meta.tcp_session_map_index);
-}
-
-table read_state_ACK {
-	actions {read_state_ACK_action; }
-}
-action read_state_ACK_action(){
-	read_tcp_session_is_ACK.execute_stateful_alu(meta.tcp_session_map_index);
-}
-table read_state_h2 {
-	//if the packet is synack, then write,or read;
-	reads {
-		tcp.syn:exact;
-		tcp.ack:exact;
-	}
-	actions {	
-		read_state_h2_action; 
-		write_state_h2_action;
-	}
-}
-action read_state_h2_action(){
-	read_h2_seq.execute_stateful_alu(meta.tcp_session_map_index);
-}
-
-action write_state_h2_action(){
-	write_h2_seq.execute_stateful_alu(meta.reverse_tcp_session_map_index);
-}
-
 action read_seq_action(){
 	read_h2_seq.execute_stateful_alu(meta.tcp_session_map_index);
+	//read_h2_seq.execute_stateful_alu(tcp.srcPort);
 }
 table read_seq{
 	actions {read_seq_action;}
 }
 action read_seq_action_reverse(){
 	read_h2_seq.execute_stateful_alu(meta.reverse_tcp_session_map_index);
+	//read_h2_seq.execute_stateful_alu(tcp.dstPort);
 }
 table read_seq_reverse{
 	actions {read_seq_action_reverse;}
 }
 action write_seq_action(){
 	write_h2_seq.execute_stateful_alu(meta.reverse_tcp_session_map_index);
+	//write_h2_seq.execute_stateful_alu(tcp.dstPort);
 }
 table write_seq{
 	actions {write_seq_action;}
@@ -333,7 +303,7 @@ action inbound_transformation()
 	modify_field(ipv4.diffserv,meta.tcp_session_map_index);
 	modify_field(ipv4.identification,meta.reverse_tcp_session_map_index);
 
-	modify_field(ig_intr_md_for_tm.ucast_egress_port, 128);
+	modify_field(ig_intr_md_for_tm.ucast_egress_port, 136);
 }
 
 table inbound_tran_table2
@@ -356,7 +326,7 @@ table inbound_tran_table
 action outbound_transformation()
 {
 	subtract_from_field(tcp.seqNo,meta.tcp_h2seq);
-	modify_field(ig_intr_md_for_tm.ucast_egress_port, 136);
+	modify_field(ig_intr_md_for_tm.ucast_egress_port, 128);
 }
 
 table outbound_tran_table
@@ -462,7 +432,7 @@ action sendh2ack()
 	modify_field(ethernet.srcAddr, meta.eth_da);
 		
 
-	modify_field(ig_intr_md_for_tm.ucast_egress_port, 128);
+	modify_field(ig_intr_md_for_tm.ucast_egress_port, 136);
 
 }
 
@@ -481,7 +451,7 @@ action sendh2syn()
 
 	add_to_field(tcp.checksum,0x10);
 	
-	modify_field(ig_intr_md_for_tm.ucast_egress_port, 128);
+	modify_field(ig_intr_md_for_tm.ucast_egress_port, 136);
 }
 
 //00 noreply  01 syn/ack back to h1  02 syn to h2  03 undifined  04 resubmit 05forward the packet 
@@ -579,7 +549,7 @@ table set_heavy_hitter_count_table_2 {
 
 
 control ingress {
-	if(ig_intr_md.ingress_port == 136){
+	if(ig_intr_md.ingress_port == 128){
 		apply(session_check);
 	}
 	else {
@@ -589,10 +559,10 @@ control ingress {
 	if(meta.tcp_syn == 1 and meta.tcp_ack == 1){
 		apply(write_seq);
 	}
-	else if (meta.in_port == 136){
+	else if (meta.in_port == 128){
 		apply(read_seq);
 	}
-	else if (meta.in_port == 128){
+	else if (meta.in_port == 136){
 		apply(read_seq_reverse);
 	}
 
@@ -609,11 +579,11 @@ control ingress {
 		apply(relay_session_table); 
 	}
 	else{
-		if (meta.in_port == 128 )
+		if (meta.in_port == 136 )
 		{
 			apply(outbound_tran_table);
 		}
-		else if	(meta.in_port == 136)
+		else if	(meta.in_port == 128)
 		{
 			apply(inbound_tran_table);
 			//apply(inbound_tran_table2);

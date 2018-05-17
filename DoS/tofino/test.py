@@ -89,7 +89,9 @@ class SYNProxyTest(pd_base_tests.ThriftInterfaceDataPlane):
 		if len(digests.msg) == 0:
 			continue	
 		for digest_entry in digests.msg:
-			print i32_to_ipv4Addr(digest_entry.ipv4_srcAddr)
+			pass
+			#print digest_entry.ipv4_srcAddr
+			#print i32_to_ipv4Addr(digest_entry.ipv4_srcAddr)
 		self.client.hash_fields_digest_notify_ack(self.sess_hdl,digests.msg_ptr)
 			
 	'''
