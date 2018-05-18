@@ -25,7 +25,6 @@ header_type meta_t {
 		tcp_syn:1;
 		tcp_ack:1;
 		reply_type:4;
-		//0 drop  1 syn/ack back to h1  02 syn to h2  03 send h2 ack  04 resubmit 05 forward the packet as normal  
 		tcp_synack:1;
 		tcp_psh:1;
 		tcp_rst:1;
@@ -44,7 +43,9 @@ header_type meta_t {
 		tcp_session_h2_reply_sa:8;// h2 in this session has sent a sa to switch
 		h1_seq : 32;
 		over_thres1: 1;
+		thres1: 32;
 		over_thres2: 1;
+		thres2: 32;
 		
 	}
 
@@ -52,7 +53,6 @@ header_type meta_t {
 
 metadata meta_t meta;
 field_list l3_hash_fields {
-
 	ipv4.srcAddr;   
 	ipv4.dstAddr;
 	ipv4.protocol;
@@ -69,15 +69,11 @@ field_list_calculation tcp_session_map_hash {
 
 }
 field_list reverse_l3_hash_fields {
-
     	ipv4.dstAddr;   
 	ipv4.srcAddr;
 	ipv4.protocol;
-	
 	tcp.dstPort;	
 	tcp.srcPort;
-
-
 }
 //reverse the src address and dst address, src port and dst port, to get the hash of the reply-packet of this packet 
 //for example: h1 has a session with h2, according the reverse-hash of packet from h2, we can get the hash of packet from h1.
@@ -89,87 +85,6 @@ field_list_calculation reverse_tcp_session_map_hash{
 	output_width:16;
 	
 }	
-
-
-field_list dstip_hash_fields {
-	ipv4.dstAddr;
-}
-
-field_list_calculation dstip_map_hash {
-	input {
-		dstip_hash_fields;
-	}
-	algorithm:crc16;
-	output_width:16;
-}
-
-
-
-field_list resubmit_FL {
-	standard_metadata;
-	meta;	
-	
-}
-
-register tcp_session_is_SYN {
-	//TOFINO: Width cannot be 1 or condition_lo will not be supported
-	width : 8;
-	instance_count: 65536;
-}
-
-blackbox stateful_alu read_tcp_session_is_SYN{
-	//TOFINO: if syn = 1,write and read;else just read
-
-        reg : tcp_session_is_SYN;
-	condition_lo : tcp.syn == 1;
-	update_lo_1_predicate:condition_lo;
-        update_lo_1_value : 1  ;
-	update_lo_2_predicate:not condition_lo;
-	update_lo_2_value : register_lo;
-
-        output_value : alu_lo;
-        output_dst: meta.tcp_session_is_SYN;
-}
-
-register tcp_session_is_ACK {
-	width : 8;
-	instance_count:65536;
-}
-
-blackbox stateful_alu read_tcp_session_is_ACK{
-        reg : tcp_session_is_ACK;
-	condition_lo : tcp.ack == 1;
-	update_lo_1_predicate:condition_lo;
-        update_lo_1_value : 1 ;
-	update_lo_2_predicate:not condition_lo;
-	update_lo_2_value : register_lo;
-        output_value : alu_lo;
-        output_dst: meta.tcp_session_is_ACK;
-}
-register tcp_session_h2_reply_sa{
-	width : 1;
-	instance_count: 8192;
-}
-/*
-blackbox stateful_alu read_tcp_session_h2_reply_sa{
-        reg : tcp_session_h2_reply_sa;
-        update_lo_1_value : register_lo;
-        output_value : alu_lo;
-        output_dst: meta.tcp_session_h2_reply_sa;
-}
-
-blackbox stateful_alu write_tcp_session_h2_reply_sa{
-        reg : tcp_session_h2_reply_sa;
-        update_lo_1_value :set_bitc;
-        output_value : alu_lo;
-        output_dst: meta.tcp_session_h2_reply_sa;
-}
-*/
-
-register h1_seq{
-	width : 32;
-	instance_count: 65536;
-}
 
 //TOFINO: We have to separate read and write, because we cannot refer to more than 3 metadata in a SALU.
 register h2_seq{
@@ -188,31 +103,9 @@ blackbox stateful_alu write_h2_seq{
         output_value : alu_lo;
         output_dst : meta.tcp_h2seq;
 }
-/*
-blackbox stateful_alu inbound_h2_seq{
-        reg : h2_seq;
-        update_lo_1_value :register_lo;
-        output_value : register_lo + tcp.ackNo;
-        output_dst: tcp.ackNo;
-}
-
-blackbox stateful_alu outbound_h2_seq{
-        reg : h2_seq;
-        update_lo_1_value :register_lo;
-        output_value : tcp.seqNo-register_lo;
-        output_dst: tcp.seqNo;
-}
-*/
-register dstip_pktcount {
-	width : 32; 
-	instance_count: 8192;
-}
-
-	
 
 action _drop() {
-	generate_digest(FLOW_LRN_DIGEST_RCVR,hash_fields);
-	//drop();
+	drop();
 }
 //************************************for session_check table************************************
 action lookup_session_map()
@@ -356,6 +249,15 @@ table forward_normal_table
 		_drop;
 		set_forward_normal;
 	}
+}
+
+action report(){
+	generate_digest(FLOW_LRN_DIGEST_RCVR,hash_fields);
+}
+
+table report_table
+{
+	actions{report;}
 }
 
 table drop_table
@@ -505,7 +407,7 @@ register heavy_hitter_counter2{
 
 blackbox stateful_alu cmsketch1{
     reg: heavy_hitter_counter1;
-    condition_lo:register_lo-5>0;
+    condition_lo:register_lo-meta.thres1>0;
     update_lo_1_value: register_lo+1;
     output_predicate: condition_lo;
     output_value: combined_predicate;
@@ -515,7 +417,7 @@ blackbox stateful_alu cmsketch1{
 
 blackbox stateful_alu cmsketch2{
     reg: heavy_hitter_counter2;
-    condition_lo:register_lo-5>0;
+    condition_lo:register_lo-meta.thres2>0;
     update_lo_1_value: register_lo+1;
     output_predicate: condition_lo;
     output_value: combined_predicate;
@@ -545,10 +447,28 @@ table set_heavy_hitter_count_table_2 {
     }
     size: 1;
 }
-
-
+action nop(){
+}
+table acl{
+	reads {
+	   	ipv4.srcAddr : ternary;
+	}
+	actions {
+	        nop;
+       		_drop;
+       }
+}
+table init{
+	actions{init_action;}
+}
+action init_action(thres1,thres2){
+	modify_field(meta.thres1,thres1);
+	modify_field(meta.thres2,thres2);
+}
 
 control ingress {
+	apply(init);
+	apply(acl);
 	if(ig_intr_md.ingress_port == 128){
 		apply(session_check);
 	}
@@ -593,11 +513,8 @@ control ingress {
 	apply(set_heavy_hitter_count_table_1);
 	apply(set_heavy_hitter_count_table_2);
 	if(meta.over_thres1 == 1 and meta.over_thres2 == 1){	
-		apply(drop_table);
+		apply(report_table);
 	}
-
-	
-
 }
 control egress {
 }

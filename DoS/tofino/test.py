@@ -71,6 +71,9 @@ class SYNProxyTest(pd_base_tests.ThriftInterfaceDataPlane):
 	self.pltfm_pm.pltfm_pm_port_enable(dev,ingress_port)
 	self.pltfm_pm.pltfm_pm_port_enable(dev,egress_port)
 
+	self.client.init_set_default_action_init_action(self.sess_hdl,self.dev_tgt,
+	synproxy_init_action_action_spec_t(20000000,20000000));
+
 	self.client.session_init_table_set_default_action_sendback_sa(self.sess_hdl,self.dev_tgt);
 	self.client.session_complete_table_set_default_action_sendh2syn(self.sess_hdl,self.dev_tgt);
 	self.client.relay_session_table_set_default_action_sendh2ack(self.sess_hdl,self.dev_tgt);
@@ -81,34 +84,26 @@ class SYNProxyTest(pd_base_tests.ThriftInterfaceDataPlane):
 	self.client.session_check_reverse_set_default_action_lookup_session_map_reverse(self.sess_hdl,self.dev_tgt);
 	self.client.set_heavy_hitter_count_table_1_set_default_action_set_heavy_hitter_count_1(self.sess_hdl,self.dev_tgt);
 	self.client.set_heavy_hitter_count_table_2_set_default_action_set_heavy_hitter_count_2(self.sess_hdl,self.dev_tgt);
+	self.client.acl_set_default_action_nop(self.sess_hdl,self.dev_tgt);
 
         self.conn_mgr.complete_operations(self.sess_hdl)
+
 	self.client.hash_fields_register(self.sess_hdl,self.dev)
+
 	while(True):
 		digests = self.client.hash_fields_get_digest(self.sess_hdl)
 		if len(digests.msg) == 0:
 			continue	
 		for digest_entry in digests.msg:
-			pass
-			#print digest_entry.ipv4_srcAddr
+			print digest_entry.ipv4_srcAddr
+			self.client.acl_table_add_with__drop(self.sess_hdl,self.dev_tgt,
+				synproxy_acl_match_spec_t(ipv4_srcAddr=ipv4Addr_to_i32("10.0.0.0"),ipv4_srcAddr_mask=ipv4Addr_to_i32("255.255.255.255")),1)
+			
+			self.conn_mgr.complete_operations(self.sess_hdl)
+			print digest_entry.ipv4_srcAddr
 			#print i32_to_ipv4Addr(digest_entry.ipv4_srcAddr)
 		self.client.hash_fields_digest_notify_ack(self.sess_hdl,digests.msg_ptr)
 			
-	'''
-        print("Sending packet with DST MAC=%s into port %d" %
-              (mac_da, ingress_port))
-        pkt = simple_tcp_packet(eth_dst=mac_da,
-                                eth_src='00:55:55:55:55:55',
-                                ip_dst='10.0.0.1',
-                                ip_id=101,
-                                ip_ttl=64,
-                                ip_ihl=5)
-        send_packet(self, ingress_port, pkt)
-	time.sleep(1)
-        print("Expecting packet on port %d" % egress_port)
-        verify_packets(self, pkt, [egress_port])
-	'''
-
     # Use this method to return the DUT to the initial state by cleaning
     # all the configuration and clearing up the connection
     def tearDown(self):
