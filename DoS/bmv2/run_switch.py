@@ -2,7 +2,7 @@
 # including syn cookie hash key (timely update)
 # and check for the value of syn meter, syn counter, valid ack counter from time to time
 
-from scapy.all import *
+import scapy.all
 import subprocess
 import os
 import re
@@ -46,7 +46,7 @@ def table_set_default(table_name, default_action_name):
 def read_meter():
     global syn_meter_name
     # print 'Reading syn_meter data...'
-    meter_result = meter_get_rates(syn_meter_name , 0)
+    meter_get_rates(syn_meter_name , 0)
     return 0
 
 def read_counters():
@@ -57,7 +57,7 @@ def read_counters():
     counter_results = {}
 
     syn_counter_result = counter_read(syn_counter_name, 0)
-    syn_counter_result = counter_read(vack_counter_name, 0)
+    vack_counter_result = counter_read(vack_counter_name, 0)
     pattern = re.compile(r'BmCounterValue\(packets=(\d+), bytes=(\d+)\)')
     syn_match = pattern.search(syn_counter_result)
     if(syn_match):
@@ -105,27 +105,27 @@ def update_black_list(rows=4096):
     blacklist_result = 0 * rows
     for i in range(0, rows):
         register_result = register_read(blacklist_register_name, i)
-        pattern = re.compile(blacklist_register_name + '\[\d+\]=\s*(\d+)')
-            match = pattern.search(register_result)
-            if(match):
-                blacklist_result[i] = match.group(1)
-                if blacklist_result[i] >= 2: # 10 or 11
-                    register_write(blacklist_register_name, i, 1)
-                else:
-                    register_write(blacklist_register_name, i, 0)
+        pattern = re.compile(blacklist_register_name + r'\[\d+\]=\s*(\d+)')
+        match = pattern.search(register_result)
+        if(match):
+            blacklist_result[i] = match.group(1)
+            if blacklist_result[i] >= 2: # 10 or 11
+                register_write(blacklist_register_name, i, 1)
+            else:
+                register_write(blacklist_register_name, i, 0)
 
 def update_white_list(rows=4096):
     blacklist_result = 0 * rows
     for i in range(0, rows):
         register_result = register_read(whitelist_register_name, i)
-        pattern = re.compile(blacklist_register_name + '\[\d+\]=\s*(\d+)')
-            match = pattern.search(register_result)
-            if(match):
-                blacklist_result[i] = match.group(1)
-                if blacklist_result[i] >= 2: # 10 or 11
-                    register_write(blacklist_register_name, i, 1)
-                else:
-                    register_write(blacklist_register_name, i, 0)
+        pattern = re.compile(blacklist_register_name + r'\[\d+\]=\s*(\d+)')
+        match = pattern.search(register_result)
+        if(match):
+            blacklist_result[i] = match.group(1)
+            if blacklist_result[i] >= 2: # 10 or 11
+                register_write(blacklist_register_name, i, 1)
+            else:
+                register_write(blacklist_register_name, i, 0)
 def main():
     global proxy_status
     listen_interval = 0.5
