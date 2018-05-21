@@ -91,6 +91,8 @@ class SYNProxyTest(pd_base_tests.ThriftInterfaceDataPlane):
 	self.client.hash_fields_register(self.sess_hdl,self.dev)
 
 	while(True):
+		pass
+		'''
 		digests = self.client.hash_fields_get_digest(self.sess_hdl)
 		if len(digests.msg) == 0:
 			continue	
@@ -103,7 +105,7 @@ class SYNProxyTest(pd_base_tests.ThriftInterfaceDataPlane):
 			print digest_entry.ipv4_srcAddr
 			#print i32_to_ipv4Addr(digest_entry.ipv4_srcAddr)
 		self.client.hash_fields_digest_notify_ack(self.sess_hdl,digests.msg_ptr)
-			
+		'''
     # Use this method to return the DUT to the initial state by cleaning
     # all the configuration and clearing up the connection
     def tearDown(self):
