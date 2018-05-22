@@ -6,9 +6,13 @@
 
 #include "include/headers.p4"
 #include "include/parser.p4"
+#include "include/time.p4"
 
 header_type meta_t {
 	fields {
+		time32 : 32;
+		countt : 16;
+
 		eth_sa:48;
 		eth_da:48;
 		ipv4_sa : 32;
@@ -467,6 +471,12 @@ action init_action(thres1,thres2){
 }
 
 control ingress {
+
+	apply(update_countt);
+	apply(time32_in);
+	apply(write_time_in);
+
+
 	apply(init);
 	apply(acl);
 	if(ig_intr_md.ingress_port == 128){
@@ -517,5 +527,7 @@ control ingress {
 	}
 }
 control egress {
+	apply(time32_eg);
+	apply(write_time_eg);
 }
 

@@ -14,6 +14,7 @@
 """
 Simple PTF test for synproxy.p4
 """
+import time
 
 import pd_base_tests
 
@@ -86,9 +87,27 @@ class SYNProxyTest(pd_base_tests.ThriftInterfaceDataPlane):
 	self.client.set_heavy_hitter_count_table_2_set_default_action_set_heavy_hitter_count_2(self.sess_hdl,self.dev_tgt);
 	self.client.acl_set_default_action_nop(self.sess_hdl,self.dev_tgt);
 
+	self.client.update_countt_set_default_action_update_countt(self.sess_hdl, self.dev_tgt)
+        self.client.time32_in_set_default_action_time32_in(self.sess_hdl, self.dev_tgt)
+	#self.client.write_time_in_set_default_action_write_time_in(self.sess_hdl, self.dev_tgt)
+	self.client.time32_eg_set_default_action_time32_eg(self.sess_hdl, self.dev_tgt)
+      	#self.client.write_time_eg_set_default_action_write_time_eg(self.sess_hdl, self.dev_tgt)
+
+
+
         self.conn_mgr.complete_operations(self.sess_hdl)
 
 	self.client.hash_fields_register(self.sess_hdl,self.dev)
+
+
+	hw_sync_flag = synproxy_register_flags_t(read_hw_sync = True)
+	time.sleep(10)
+   	for i in range(16):
+		print i
+		reg_in = self.client.register_read_write_time_in(self.sess_hdl, self.dev_tgt, i, hw_sync_flag)
+		print reg_in
+        	reg_eg = self.client.register_read_write_time_eg(self.sess_hdl, self.dev_tgt, i, hw_sync_flag)
+	     	print reg_eg
 
 	while(True):
 		pass
