@@ -1,4 +1,4 @@
-# DDoS Migitation using switching ASICs
+# DDoS Mitigation Using Switching ASICs
 Here in this repository, we implemented multiple Denial-of-Service (DoS) defense modules in switching ASICs to protect servers from DoS attacks.
 
 Modern programmable switches now have enough power to implement most of the DoS defense methods directly. However, traditional DoS defense approaches are all memory-intensive, while switch only has limited resources, which makes it non-trivial to migrate these approach directly. We carefully design various techniques such as memory reuse, compromising accuracy, hash-based compressing to fully exploit the potential of a switch.
