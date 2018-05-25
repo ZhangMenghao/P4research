@@ -5,10 +5,10 @@ Modern programmable switches now have enough power to implement most of the DoS 
 
 The whole mechanism here is completely transparent to all devices in the network. The whole system can be automatically turned on or off according to the traffic passing through it, which make our system incur negative impacts on legitimate traffic as low as possible.
 
-We mainly aim at provides protection for flooding-based DoS attacks, including spoofing attacks (e.g., *UDP FLOOD*, *ICMP FLOOD*, * TCP SYN FLOOD*, *DNS Reflection*) and unspoofing attacks (e.g. *data flood*, *Sloworis attack*, *NAPTHA attack*).
+We mainly aim at provides protection for flooding-based DoS attacks, including spoofing attacks (e.g., *UDP flood*, *ICMP flood*, *TCP SYN flood*, *DNS Reflection*) and unspoofing attacks (e.g. *data flood*, *Sloworis attack*, *NAPTHA attack*).
 
 ## Spoofing Attacks
-We use a whitelist to limit the overall throughput while guaranteeing a higher priority for those source-IPs in the whitelist. The whitelist can be built from two sources, one is migrated directly from the whiltelist of TCP defence mechanism, the other is obtained from DNS or ICMP tracking table.
+We use a whitelist to limit the overall throughput while guaranteeing a higher priority for those source-IPs in the whitelist. The whitelist can be built from two sources, one is migrated directly from the whiltelist of TCP defense mechanism, the other is obtained from DNS or ICMP tracking table.
 ### Reflector Attacks 
 Tracking table, as mentioned above, is a great way to protect a network from reflection attacks. Take DNS reflecion attack as an example. We can track every DNS request message sent out of the network, and DNS reply can re-enter the network only if its corresponding request packet was recorded.
 
