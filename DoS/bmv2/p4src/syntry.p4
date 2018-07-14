@@ -353,6 +353,21 @@ table drop_table {
 	}
 }
 
+//********for empty_conn_in_proxy_table_table********
+
+
+action empty_conn_in_proxy_table() {
+	modify_field(meta.to_drop, FALSE);
+	// subtract delta to seq#
+	subtract_from_field(tcp.seq_no, meta.syn_proxy_table_entry_val >> 7);
+	// empty the corresponding entry in syn_proxy_table
+	register_write(syn_proxy_table, meta.syn_proxy_table_hash_val, 0);
+}
+table empty_conn_in_proxy_table_table {
+	actions {
+		empty_conn_in_proxy_table;
+	}
+}
 
 //********for open_window_table********
 
@@ -628,7 +643,12 @@ control syn_proxy {
 		if(standard_metadata.ingress_port == (meta.syn_proxy_table_entry_val & 0x7e) >> 1){
 			// it's from server
 			// seq# - delta
-			apply(sub_delta_to_seq_table);
+			if(tcp.flags == (TCP_FLAG_FIN | TCP_FLAG_ACK)){
+				// FIN
+				apply(empty_conn_in_proxy_table_table);
+			}else{
+				apply(sub_delta_to_seq_table);
+			}
 		}else {
 			// from client
 			// ack# + delta
@@ -722,7 +742,7 @@ control ingress {
 			if(tcp.flags & TCP_FLAG_SYN == TCP_FLAG_SYN){
 				// add 1 to count-min sketch
 				apply(conn_count_inc_table);
-			} else if(tcp.flags & TCP_FLAG_FIN == TCP_FLAG_FIN){
+			} else if(tcp.flags == (TCP_FLAG_FIN | TCP_FLAG_ACK)){
 				// subtract 1 from count-min sketch
 				apply(conn_count_dec_table);
 			}
