@@ -37,9 +37,7 @@ def meter_get_rates(meter_name, index):
 def counter_read(counter_name, index):
     return send_to_CLI('counter_read ' + counter_name + ' ' + str(index))
 
-def table_reset_default(table_name):
-    return send_to_CLI('table_reset_default ' + table_name)
-blacklist_register_name
+
 def table_set_default(table_name, default_action_name):
     return send_to_CLI('table_set_default ' + table_name + ' ' + default_action_name)
 
@@ -72,7 +70,6 @@ def turn_on_proxy():
     if proxy_status == 1:
         return
     print 'Turning on proxy...'
-    print table_reset_default(proxy_status_table_name)
     print table_set_default(proxy_status_table_name, proxy_on_action_name)
     proxy_status = 1
 
@@ -81,7 +78,6 @@ def turn_off_proxy():
     if proxy_status == 0:
         return
     print 'Turning off proxy...'
-    print table_reset_default(proxy_status_table_name)
     print table_set_default(proxy_status_table_name, proxy_off_action_name)
     proxy_status = 0
     
