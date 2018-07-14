@@ -37,6 +37,8 @@ def meter_get_rates(meter_name, index):
 def counter_read(counter_name, index):
     return send_to_CLI('counter_read ' + counter_name + ' ' + str(index))
 
+def table_reset_default(table_name):
+    return send_to_CLI('table_reset_default ' + table_name)
 
 def table_set_default(table_name, default_action_name):
     return send_to_CLI('table_set_default ' + table_name + ' ' + default_action_name)

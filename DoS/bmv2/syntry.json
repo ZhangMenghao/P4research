@@ -717,16 +717,16 @@
     ],
     "actions": [
         {
-            "name": "set_nhop",
+            "name": "calculate_syn_cookie_from_client",
             "id": 0,
             "runtime_data": [
                 {
-                    "name": "nhop_ipv4",
+                    "name": "key1",
                     "bitwidth": 32
                 },
                 {
-                    "name": "port",
-                    "bitwidth": 9
+                    "name": "key2",
+                    "bitwidth": 32
                 }
             ],
             "primitives": [
@@ -737,7 +737,7 @@
                             "type": "field",
                             "value": [
                                 "meta",
-                                "nhop_ipv4"
+                                "cookie_key1"
                             ]
                         },
                         {
@@ -752,8 +752,8 @@
                         {
                             "type": "field",
                             "value": [
-                                "standard_metadata",
-                                "egress_spec"
+                                "meta",
+                                "cookie_key2"
                             ]
                         },
                         {
@@ -763,18 +763,50 @@
                     ]
                 },
                 {
-                    "op": "add_to_field",
+                    "op": "modify_field_with_hash_based_offset",
                     "parameters": [
                         {
                             "type": "field",
                             "value": [
-                                "ipv4",
-                                "ttl"
+                                "meta",
+                                "cookie_val1"
                             ]
                         },
                         {
                             "type": "hexstr",
-                            "value": "-0x1"
+                            "value": "0x0"
+                        },
+                        {
+                            "type": "calculation",
+                            "value": "syn_cookie_key1_calculation"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x10000"
+                        }
+                    ]
+                },
+                {
+                    "op": "modify_field_with_hash_based_offset",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "cookie_val2"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x0"
+                        },
+                        {
+                            "type": "calculation",
+                            "value": "syn_cookie_key2_calculation"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x10000"
                         }
                     ]
                 }
@@ -821,290 +853,43 @@
             ]
         },
         {
-            "name": "mark_foward_normally",
+            "name": "add_to_blacklist",
             "id": 2,
             "runtime_data": [],
             "primitives": [
                 {
-                    "op": "modify_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "to_drop"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x0"
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "set_dmac",
-            "id": 3,
-            "runtime_data": [
-                {
-                    "name": "dmac",
-                    "bitwidth": 48
-                }
-            ],
-            "primitives": [
-                {
-                    "op": "modify_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "ethernet",
-                                "dst_addr"
-                            ]
-                        },
-                        {
-                            "type": "runtime_data",
-                            "value": 0
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "read_syn_proxy_table_entry_value",
-            "id": 4,
-            "runtime_data": [],
-            "primitives": [
-                {
-                    "op": "modify_field_with_hash_based_offset",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "syn_proxy_table_hash_val"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x0"
-                        },
-                        {
-                            "type": "calculation",
-                            "value": "tcp_five_tuple_hash"
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0xd"
-                        }
-                    ]
-                },
-                {
-                    "op": "register_read",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "syn_proxy_table_entry_val"
-                            ]
-                        },
-                        {
-                            "type": "register_array",
-                            "value": "syn_proxy_table"
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "syn_proxy_table_hash_val"
-                            ]
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "pkt_size_count",
-            "id": 5,
-            "runtime_data": [],
-            "primitives": [
-                {
-                    "op": "modify_field_with_hash_based_offset",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_hash_val0"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x0"
-                        },
-                        {
-                            "type": "calculation",
-                            "value": "heavy_hitter_hash0"
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x8"
-                        }
-                    ]
-                },
-                {
-                    "op": "register_read",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_size_count_val0"
-                            ]
-                        },
-                        {
-                            "type": "register_array",
-                            "value": "hh_size_hashtable0"
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_hash_val0"
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "op": "add_to_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_size_count_val0"
-                            ]
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "ipv4",
-                                "totalLen"
-                            ]
-                        }
-                    ]
-                },
-                {
                     "op": "register_write",
                     "parameters": [
                         {
                             "type": "register_array",
-                            "value": "hh_size_hashtable0"
+                            "value": "blacklist_table"
                         },
                         {
                             "type": "field",
                             "value": [
                                 "meta",
-                                "hh_hash_val0"
+                                "src_ip_hash_val"
                             ]
                         },
                         {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_size_count_val0"
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "op": "modify_field_with_hash_based_offset",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_hash_val1"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x0"
-                        },
-                        {
-                            "type": "calculation",
-                            "value": "heavy_hitter_hash1"
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x8"
-                        }
-                    ]
-                },
-                {
-                    "op": "register_read",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_size_count_val1"
-                            ]
-                        },
-                        {
-                            "type": "register_array",
-                            "value": "hh_size_hashtable1"
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_hash_val1"
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "op": "add_to_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_size_count_val1"
-                            ]
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "ipv4",
-                                "totalLen"
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "op": "register_write",
-                    "parameters": [
-                        {
-                            "type": "register_array",
-                            "value": "hh_size_hashtable1"
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_hash_val1"
-                            ]
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_size_count_val1"
-                            ]
+                            "type": "expression",
+                            "value": {
+                                "type": "expression",
+                                "value": {
+                                    "op": "|",
+                                    "left": {
+                                        "type": "hexstr",
+                                        "value": "0x2"
+                                    },
+                                    "right": {
+                                        "type": "field",
+                                        "value": [
+                                            "meta",
+                                            "bl_src_ip_entry_val"
+                                        ]
+                                    }
+                                }
+                            }
                         }
                     ]
                 }
@@ -1112,7 +897,7 @@
         },
         {
             "name": "mark_has_ack",
-            "id": 6,
+            "id": 3,
             "runtime_data": [],
             "primitives": [
                 {
@@ -1190,8 +975,214 @@
             ]
         },
         {
-            "name": "open_window",
+            "name": "turn_off_proxy",
+            "id": 4,
+            "runtime_data": [],
+            "primitives": [
+                {
+                    "op": "modify_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "syn_proxy_status"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x0"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "calculate_syn_cookie_from_server",
+            "id": 5,
+            "runtime_data": [
+                {
+                    "name": "key1",
+                    "bitwidth": 32
+                },
+                {
+                    "name": "key2",
+                    "bitwidth": 32
+                }
+            ],
+            "primitives": [
+                {
+                    "op": "modify_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "cookie_key1"
+                            ]
+                        },
+                        {
+                            "type": "runtime_data",
+                            "value": 0
+                        }
+                    ]
+                },
+                {
+                    "op": "modify_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "cookie_key2"
+                            ]
+                        },
+                        {
+                            "type": "runtime_data",
+                            "value": 1
+                        }
+                    ]
+                },
+                {
+                    "op": "modify_field_with_hash_based_offset",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "cookie_val1"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x0"
+                        },
+                        {
+                            "type": "calculation",
+                            "value": "syn_cookie_key1_reverse_calculation"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x10000"
+                        }
+                    ]
+                },
+                {
+                    "op": "modify_field_with_hash_based_offset",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "cookie_val2"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x0"
+                        },
+                        {
+                            "type": "calculation",
+                            "value": "syn_cookie_key2_reverse_calculation"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x10000"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "set_nhop",
+            "id": 6,
+            "runtime_data": [
+                {
+                    "name": "nhop_ipv4",
+                    "bitwidth": 32
+                },
+                {
+                    "name": "port",
+                    "bitwidth": 9
+                }
+            ],
+            "primitives": [
+                {
+                    "op": "modify_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "nhop_ipv4"
+                            ]
+                        },
+                        {
+                            "type": "runtime_data",
+                            "value": 0
+                        }
+                    ]
+                },
+                {
+                    "op": "modify_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "standard_metadata",
+                                "egress_spec"
+                            ]
+                        },
+                        {
+                            "type": "runtime_data",
+                            "value": 1
+                        }
+                    ]
+                },
+                {
+                    "op": "add_to_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "ipv4",
+                                "ttl"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "-0x1"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "mark_foward_normally",
             "id": 7,
+            "runtime_data": [],
+            "primitives": [
+                {
+                    "op": "modify_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "to_drop"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x0"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "open_window",
+            "id": 8,
             "runtime_data": [],
             "primitives": [
                 {
@@ -1392,8 +1383,193 @@
             ]
         },
         {
+            "name": "pkt_size_count",
+            "id": 9,
+            "runtime_data": [],
+            "primitives": [
+                {
+                    "op": "modify_field_with_hash_based_offset",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_hash_val0"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x0"
+                        },
+                        {
+                            "type": "calculation",
+                            "value": "heavy_hitter_hash0"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x100"
+                        }
+                    ]
+                },
+                {
+                    "op": "register_read",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_size_count_val0"
+                            ]
+                        },
+                        {
+                            "type": "register_array",
+                            "value": "hh_size_hashtable0"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_hash_val0"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "op": "add_to_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_size_count_val0"
+                            ]
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "ipv4",
+                                "totalLen"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "op": "register_write",
+                    "parameters": [
+                        {
+                            "type": "register_array",
+                            "value": "hh_size_hashtable0"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_hash_val0"
+                            ]
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_size_count_val0"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "op": "modify_field_with_hash_based_offset",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_hash_val1"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x0"
+                        },
+                        {
+                            "type": "calculation",
+                            "value": "heavy_hitter_hash1"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x100"
+                        }
+                    ]
+                },
+                {
+                    "op": "register_read",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_size_count_val1"
+                            ]
+                        },
+                        {
+                            "type": "register_array",
+                            "value": "hh_size_hashtable1"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_hash_val1"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "op": "add_to_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_size_count_val1"
+                            ]
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "ipv4",
+                                "totalLen"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "op": "register_write",
+                    "parameters": [
+                        {
+                            "type": "register_array",
+                            "value": "hh_size_hashtable1"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_hash_val1"
+                            ]
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_size_count_val1"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
             "name": "read_blacklist_entry_value",
-            "id": 8,
+            "id": 10,
             "runtime_data": [],
             "primitives": [
                 {
@@ -1416,7 +1592,7 @@
                         },
                         {
                             "type": "hexstr",
-                            "value": "0xc"
+                            "value": "0x1000"
                         }
                     ]
                 },
@@ -1463,7 +1639,7 @@
                         },
                         {
                             "type": "hexstr",
-                            "value": "0xc"
+                            "value": "0x1000"
                         }
                     ]
                 },
@@ -1493,46 +1669,23 @@
             ]
         },
         {
-            "name": "pkt_count_inc",
-            "id": 9,
+            "name": "mark_has_syn",
+            "id": 11,
             "runtime_data": [],
             "primitives": [
                 {
-                    "op": "register_read",
+                    "op": "modify_field",
                     "parameters": [
                         {
                             "type": "field",
                             "value": [
                                 "meta",
-                                "hh_conn_count_val0"
-                            ]
-                        },
-                        {
-                            "type": "register_array",
-                            "value": "hh_conn_hashtable0"
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_hash_val0"
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "op": "add_to_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_conn_count_val0"
+                                "to_drop"
                             ]
                         },
                         {
                             "type": "hexstr",
-                            "value": "0x1"
+                            "value": "0x0"
                         }
                     ]
                 },
@@ -1541,126 +1694,192 @@
                     "parameters": [
                         {
                             "type": "register_array",
-                            "value": "hh_conn_hashtable0"
+                            "value": "no_proxy_table"
                         },
                         {
                             "type": "field",
                             "value": [
                                 "meta",
-                                "hh_hash_val0"
-                            ]
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_conn_count_val0"
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "op": "register_read",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_conn_count_val1"
-                            ]
-                        },
-                        {
-                            "type": "register_array",
-                            "value": "hh_conn_hashtable1"
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_hash_val1"
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "op": "add_to_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_conn_count_val1"
+                                "no_proxy_table_hash_val"
                             ]
                         },
                         {
                             "type": "hexstr",
                             "value": "0x1"
-                        }
-                    ]
-                },
-                {
-                    "op": "register_write",
-                    "parameters": [
-                        {
-                            "type": "register_array",
-                            "value": "hh_conn_hashtable1"
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_hash_val1"
-                            ]
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_conn_count_val1"
-                            ]
                         }
                     ]
                 }
             ]
         },
         {
-            "name": "add_to_blacklist",
-            "id": 10,
+            "name": "mark_no_conn",
+            "id": 12,
             "runtime_data": [],
             "primitives": [
+                {
+                    "op": "modify_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "to_drop"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x0"
+                        }
+                    ]
+                },
                 {
                     "op": "register_write",
                     "parameters": [
                         {
                             "type": "register_array",
-                            "value": "blacklist_table"
+                            "value": "no_proxy_table"
                         },
                         {
                             "type": "field",
                             "value": [
                                 "meta",
-                                "src_ip_hash_val"
+                                "no_proxy_table_hash_val"
                             ]
                         },
                         {
-                            "type": "expression",
-                            "value": {
-                                "type": "expression",
-                                "value": {
-                                    "op": "|",
-                                    "left": {
-                                        "type": "hexstr",
-                                        "value": "0x2"
-                                    },
-                                    "right": {
-                                        "type": "field",
-                                        "value": [
-                                            "meta",
-                                            "bl_src_ip_entry_val"
-                                        ]
-                                    }
-                                }
-                            }
+                            "type": "hexstr",
+                            "value": "0x0"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "pkt_count_inc",
+            "id": 13,
+            "runtime_data": [],
+            "primitives": [
+                {
+                    "op": "register_read",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_conn_count_val0"
+                            ]
+                        },
+                        {
+                            "type": "register_array",
+                            "value": "hh_conn_hashtable0"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_hash_val0"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "op": "add_to_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_conn_count_val0"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x1"
+                        }
+                    ]
+                },
+                {
+                    "op": "register_write",
+                    "parameters": [
+                        {
+                            "type": "register_array",
+                            "value": "hh_conn_hashtable0"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_hash_val0"
+                            ]
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_conn_count_val0"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "op": "register_read",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_conn_count_val1"
+                            ]
+                        },
+                        {
+                            "type": "register_array",
+                            "value": "hh_conn_hashtable1"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_hash_val1"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "op": "add_to_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_conn_count_val1"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x1"
+                        }
+                    ]
+                },
+                {
+                    "op": "register_write",
+                    "parameters": [
+                        {
+                            "type": "register_array",
+                            "value": "hh_conn_hashtable1"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_hash_val1"
+                            ]
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_conn_count_val1"
+                            ]
                         }
                     ]
                 }
@@ -1668,7 +1887,7 @@
         },
         {
             "name": "reply_sa",
-            "id": 11,
+            "id": 14,
             "runtime_data": [],
             "primitives": [
                 {
@@ -1863,7 +2082,7 @@
         },
         {
             "name": "mark_in_blacklist",
-            "id": 12,
+            "id": 15,
             "runtime_data": [],
             "primitives": [
                 {
@@ -1886,7 +2105,7 @@
         },
         {
             "name": "read_no_proxy_table_entry_value",
-            "id": 13,
+            "id": 16,
             "runtime_data": [],
             "primitives": [
                 {
@@ -1909,7 +2128,7 @@
                         },
                         {
                             "type": "hexstr",
-                            "value": "0xd"
+                            "value": "0x2000"
                         }
                     ]
                 },
@@ -1940,7 +2159,7 @@
         },
         {
             "name": "confirm_connection",
-            "id": 14,
+            "id": 17,
             "runtime_data": [],
             "primitives": [
                 {
@@ -1978,27 +2197,47 @@
                             "value": {
                                 "type": "expression",
                                 "value": {
-                                    "op": "<<",
+                                    "op": "|",
                                     "left": {
                                         "type": "expression",
                                         "value": {
-                                            "op": "-",
+                                            "op": "<<",
                                             "left": {
-                                                "type": "field",
-                                                "value": [
-                                                    "tcp",
-                                                    "ack_no"
-                                                ]
+                                                "type": "expression",
+                                                "value": {
+                                                    "op": "-",
+                                                    "left": {
+                                                        "type": "field",
+                                                        "value": [
+                                                            "tcp",
+                                                            "ack_no"
+                                                        ]
+                                                    },
+                                                    "right": {
+                                                        "type": "hexstr",
+                                                        "value": "0x1"
+                                                    }
+                                                }
+                                            },
+                                            "right": {
+                                                "type": "hexstr",
+                                                "value": "0x7"
+                                            }
+                                        }
+                                    },
+                                    "right": {
+                                        "type": "expression",
+                                        "value": {
+                                            "op": "<<",
+                                            "left": {
+                                                "type": "hexstr",
+                                                "value": "0x3f"
                                             },
                                             "right": {
                                                 "type": "hexstr",
                                                 "value": "0x1"
                                             }
                                         }
-                                    },
-                                    "right": {
-                                        "type": "hexstr",
-                                        "value": "0x7"
                                     }
                                 }
                             }
@@ -2086,7 +2325,7 @@
         },
         {
             "name": "sub_delta_to_seq",
-            "id": 15,
+            "id": 18,
             "runtime_data": [],
             "primitives": [
                 {
@@ -2140,145 +2379,9 @@
             ]
         },
         {
-            "name": "pkt_count_dec",
-            "id": 16,
+            "name": "turn_on_proxy",
+            "id": 19,
             "runtime_data": [],
-            "primitives": [
-                {
-                    "op": "register_read",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_conn_count_val0"
-                            ]
-                        },
-                        {
-                            "type": "register_array",
-                            "value": "hh_conn_hashtable0"
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_hash_val0"
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "op": "subtract_from_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_conn_count_val0"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x1"
-                        }
-                    ]
-                },
-                {
-                    "op": "register_write",
-                    "parameters": [
-                        {
-                            "type": "register_array",
-                            "value": "hh_conn_hashtable0"
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_hash_val0"
-                            ]
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_conn_count_val0"
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "op": "register_read",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_conn_count_val1"
-                            ]
-                        },
-                        {
-                            "type": "register_array",
-                            "value": "hh_conn_hashtable1"
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_hash_val1"
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "op": "subtract_from_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_conn_count_val1"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x1"
-                        }
-                    ]
-                },
-                {
-                    "op": "register_write",
-                    "parameters": [
-                        {
-                            "type": "register_array",
-                            "value": "hh_conn_hashtable1"
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_hash_val1"
-                            ]
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "hh_conn_count_val1"
-                            ]
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "rewrite_mac",
-            "id": 17,
-            "runtime_data": [
-                {
-                    "name": "smac",
-                    "bitwidth": 48
-                }
-            ],
             "primitives": [
                 {
                     "op": "modify_field",
@@ -2286,21 +2389,152 @@
                         {
                             "type": "field",
                             "value": [
-                                "ethernet",
-                                "src_addr"
+                                "meta",
+                                "syn_proxy_status"
                             ]
                         },
                         {
-                            "type": "runtime_data",
-                            "value": 0
+                            "type": "hexstr",
+                            "value": "0x1"
                         }
                     ]
                 }
             ]
         },
         {
-            "name": "read_whitelist_entry_value",
-            "id": 18,
+            "name": "pkt_count_dec",
+            "id": 20,
+            "runtime_data": [],
+            "primitives": [
+                {
+                    "op": "register_read",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_conn_count_val0"
+                            ]
+                        },
+                        {
+                            "type": "register_array",
+                            "value": "hh_conn_hashtable0"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_hash_val0"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "op": "subtract_from_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_conn_count_val0"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x1"
+                        }
+                    ]
+                },
+                {
+                    "op": "register_write",
+                    "parameters": [
+                        {
+                            "type": "register_array",
+                            "value": "hh_conn_hashtable0"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_hash_val0"
+                            ]
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_conn_count_val0"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "op": "register_read",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_conn_count_val1"
+                            ]
+                        },
+                        {
+                            "type": "register_array",
+                            "value": "hh_conn_hashtable1"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_hash_val1"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "op": "subtract_from_field",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_conn_count_val1"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x1"
+                        }
+                    ]
+                },
+                {
+                    "op": "register_write",
+                    "parameters": [
+                        {
+                            "type": "register_array",
+                            "value": "hh_conn_hashtable1"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_hash_val1"
+                            ]
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "hh_conn_count_val1"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "read_syn_proxy_table_entry_value",
+            "id": 21,
             "runtime_data": [],
             "primitives": [
                 {
@@ -2310,7 +2544,7 @@
                             "type": "field",
                             "value": [
                                 "meta",
-                                "src_ip_hash_val"
+                                "syn_proxy_table_hash_val"
                             ]
                         },
                         {
@@ -2319,11 +2553,11 @@
                         },
                         {
                             "type": "calculation",
-                            "value": "src_ip_hash"
+                            "value": "tcp_five_tuple_hash"
                         },
                         {
                             "type": "hexstr",
-                            "value": "0xc"
+                            "value": "0x2000"
                         }
                     ]
                 },
@@ -2334,65 +2568,18 @@
                             "type": "field",
                             "value": [
                                 "meta",
-                                "wl_src_ip_entry_val"
+                                "syn_proxy_table_entry_val"
                             ]
                         },
                         {
                             "type": "register_array",
-                            "value": "whitelist_table"
+                            "value": "syn_proxy_table"
                         },
                         {
                             "type": "field",
                             "value": [
                                 "meta",
-                                "src_ip_hash_val"
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "op": "modify_field_with_hash_based_offset",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "dst_ip_hash_val"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x0"
-                        },
-                        {
-                            "type": "calculation",
-                            "value": "dst_ip_hash"
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0xc"
-                        }
-                    ]
-                },
-                {
-                    "op": "register_read",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "wl_dst_ip_entry_val"
-                            ]
-                        },
-                        {
-                            "type": "register_array",
-                            "value": "whitelist_table"
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "dst_ip_hash_val"
+                                "syn_proxy_table_hash_val"
                             ]
                         }
                     ]
@@ -2401,7 +2588,7 @@
         },
         {
             "name": "add_delta_to_ack",
-            "id": 19,
+            "id": 22,
             "runtime_data": [],
             "primitives": [
                 {
@@ -2455,9 +2642,14 @@
             ]
         },
         {
-            "name": "mark_no_conn",
-            "id": 20,
-            "runtime_data": [],
+            "name": "rewrite_mac",
+            "id": 23,
+            "runtime_data": [
+                {
+                    "name": "smac",
+                    "bitwidth": 48
+                }
+            ],
             "primitives": [
                 {
                     "op": "modify_field",
@@ -2465,42 +2657,27 @@
                         {
                             "type": "field",
                             "value": [
-                                "meta",
-                                "to_drop"
+                                "ethernet",
+                                "src_addr"
                             ]
                         },
                         {
-                            "type": "hexstr",
-                            "value": "0x0"
-                        }
-                    ]
-                },
-                {
-                    "op": "register_write",
-                    "parameters": [
-                        {
-                            "type": "register_array",
-                            "value": "no_proxy_table"
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "no_proxy_table_hash_val"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x0"
+                            "type": "runtime_data",
+                            "value": 0
                         }
                     ]
                 }
             ]
         },
         {
-            "name": "mark_has_syn",
-            "id": 21,
-            "runtime_data": [],
+            "name": "set_dmac",
+            "id": 24,
+            "runtime_data": [
+                {
+                    "name": "dmac",
+                    "bitwidth": 48
+                }
+            ],
             "primitives": [
                 {
                     "op": "modify_field",
@@ -2508,52 +2685,21 @@
                         {
                             "type": "field",
                             "value": [
-                                "meta",
-                                "to_drop"
+                                "ethernet",
+                                "dst_addr"
                             ]
                         },
                         {
-                            "type": "hexstr",
-                            "value": "0x0"
+                            "type": "runtime_data",
+                            "value": 0
                         }
                     ]
-                },
-                {
-                    "op": "register_write",
-                    "parameters": [
-                        {
-                            "type": "register_array",
-                            "value": "no_proxy_table"
-                        },
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "no_proxy_table_hash_val"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x1"
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "_no_op",
-            "id": 22,
-            "runtime_data": [],
-            "primitives": [
-                {
-                    "op": "no_op",
-                    "parameters": []
                 }
             ]
         },
         {
             "name": "_drop",
-            "id": 23,
+            "id": 25,
             "runtime_data": [],
             "primitives": [
                 {
@@ -2595,238 +2741,101 @@
             ]
         },
         {
-            "name": "calculate_syn_cookie_from_client",
-            "id": 24,
-            "runtime_data": [
-                {
-                    "name": "key1",
-                    "bitwidth": 32
-                },
-                {
-                    "name": "key2",
-                    "bitwidth": 32
-                }
-            ],
-            "primitives": [
-                {
-                    "op": "modify_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "cookie_key1"
-                            ]
-                        },
-                        {
-                            "type": "runtime_data",
-                            "value": 0
-                        }
-                    ]
-                },
-                {
-                    "op": "modify_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "cookie_key2"
-                            ]
-                        },
-                        {
-                            "type": "runtime_data",
-                            "value": 1
-                        }
-                    ]
-                },
-                {
-                    "op": "modify_field_with_hash_based_offset",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "cookie_val1"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x0"
-                        },
-                        {
-                            "type": "calculation",
-                            "value": "syn_cookie_key1_calculation"
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x20"
-                        }
-                    ]
-                },
-                {
-                    "op": "modify_field_with_hash_based_offset",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "cookie_val2"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x0"
-                        },
-                        {
-                            "type": "calculation",
-                            "value": "syn_cookie_key2_calculation"
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x20"
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "calculate_syn_cookie_from_server",
-            "id": 25,
-            "runtime_data": [
-                {
-                    "name": "key1",
-                    "bitwidth": 32
-                },
-                {
-                    "name": "key2",
-                    "bitwidth": 32
-                }
-            ],
-            "primitives": [
-                {
-                    "op": "modify_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "cookie_key1"
-                            ]
-                        },
-                        {
-                            "type": "runtime_data",
-                            "value": 0
-                        }
-                    ]
-                },
-                {
-                    "op": "modify_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "cookie_key2"
-                            ]
-                        },
-                        {
-                            "type": "runtime_data",
-                            "value": 1
-                        }
-                    ]
-                },
-                {
-                    "op": "modify_field_with_hash_based_offset",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "cookie_val1"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x0"
-                        },
-                        {
-                            "type": "calculation",
-                            "value": "syn_cookie_key1_reverse_calculation"
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x20"
-                        }
-                    ]
-                },
-                {
-                    "op": "modify_field_with_hash_based_offset",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "cookie_val2"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x0"
-                        },
-                        {
-                            "type": "calculation",
-                            "value": "syn_cookie_key2_reverse_calculation"
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x20"
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "turn_on_proxy",
+            "name": "read_whitelist_entry_value",
             "id": 26,
             "runtime_data": [],
             "primitives": [
                 {
-                    "op": "modify_field",
+                    "op": "modify_field_with_hash_based_offset",
                     "parameters": [
                         {
                             "type": "field",
                             "value": [
                                 "meta",
-                                "syn_proxy_status"
-                            ]
-                        },
-                        {
-                            "type": "hexstr",
-                            "value": "0x1"
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "turn_off_proxy",
-            "id": 27,
-            "runtime_data": [],
-            "primitives": [
-                {
-                    "op": "modify_field",
-                    "parameters": [
-                        {
-                            "type": "field",
-                            "value": [
-                                "meta",
-                                "syn_proxy_status"
+                                "src_ip_hash_val"
                             ]
                         },
                         {
                             "type": "hexstr",
                             "value": "0x0"
+                        },
+                        {
+                            "type": "calculation",
+                            "value": "src_ip_hash"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x1000"
+                        }
+                    ]
+                },
+                {
+                    "op": "register_read",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "wl_src_ip_entry_val"
+                            ]
+                        },
+                        {
+                            "type": "register_array",
+                            "value": "whitelist_table"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "src_ip_hash_val"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "op": "modify_field_with_hash_based_offset",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "dst_ip_hash_val"
+                            ]
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x0"
+                        },
+                        {
+                            "type": "calculation",
+                            "value": "dst_ip_hash"
+                        },
+                        {
+                            "type": "hexstr",
+                            "value": "0x1000"
+                        }
+                    ]
+                },
+                {
+                    "op": "register_read",
+                    "parameters": [
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "wl_dst_ip_entry_val"
+                            ]
+                        },
+                        {
+                            "type": "register_array",
+                            "value": "whitelist_table"
+                        },
+                        {
+                            "type": "field",
+                            "value": [
+                                "meta",
+                                "dst_ip_hash_val"
+                            ]
                         }
                     ]
                 }
@@ -3026,13 +3035,11 @@
                     "key": [],
                     "actions": [
                         "turn_on_proxy",
-                        "turn_off_proxy",
-                        "_no_op"
+                        "turn_off_proxy"
                     ],
                     "next_tables": {
                         "turn_on_proxy": "check_no_proxy_table",
-                        "turn_off_proxy": "check_no_proxy_table",
-                        "_no_op": "check_no_proxy_table"
+                        "turn_off_proxy": "check_no_proxy_table"
                     },
                     "base_default_next": "check_no_proxy_table"
                 },
@@ -3625,11 +3632,11 @@
                     "expression": {
                         "type": "expression",
                         "value": {
-                            "op": "==",
+                            "op": "and",
                             "left": {
                                 "type": "expression",
                                 "value": {
-                                    "op": "&",
+                                    "op": "==",
                                     "left": {
                                         "type": "field",
                                         "value": [
@@ -3638,32 +3645,45 @@
                                         ]
                                     },
                                     "right": {
-                                        "type": "expression",
-                                        "value": {
-                                            "op": "|",
-                                            "left": {
-                                                "type": "hexstr",
-                                                "value": "0x10"
-                                            },
-                                            "right": {
-                                                "type": "hexstr",
-                                                "value": "0x2"
-                                            }
-                                        }
+                                        "type": "hexstr",
+                                        "value": "0x12"
                                     }
                                 }
                             },
                             "right": {
                                 "type": "expression",
                                 "value": {
-                                    "op": "|",
+                                    "op": "==",
                                     "left": {
-                                        "type": "hexstr",
-                                        "value": "0x10"
+                                        "type": "expression",
+                                        "value": {
+                                            "op": "&",
+                                            "left": {
+                                                "type": "field",
+                                                "value": [
+                                                    "meta",
+                                                    "syn_proxy_table_entry_val"
+                                                ]
+                                            },
+                                            "right": {
+                                                "type": "hexstr",
+                                                "value": "0x7f"
+                                            }
+                                        }
                                     },
                                     "right": {
-                                        "type": "hexstr",
-                                        "value": "0x2"
+                                        "type": "expression",
+                                        "value": {
+                                            "op": "<<",
+                                            "left": {
+                                                "type": "hexstr",
+                                                "value": "0x3f"
+                                            },
+                                            "right": {
+                                                "type": "hexstr",
+                                                "value": "0x1"
+                                            }
+                                        }
                                     }
                                 }
                             }
