@@ -106,6 +106,7 @@ parser parse_tcp {
 	// set_metadata(meta.tcp_flags, tcp.flags);
 	set_metadata(meta.tcp_seq_no, tcp.seq_no);
 	set_metadata(meta.tcp_ack_no, tcp.ack_no);
+	set_metadata(meta.to_drop, TRUE);
 	return ingress;
 }
 //********PARSERS END********

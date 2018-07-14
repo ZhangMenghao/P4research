@@ -660,11 +660,11 @@ control syn_proxy {
 			apply(open_window_table);
 		} else{
 			apply(calculate_syn_cookie_table);
-			if(tcp.flags & TCP_FLAG_SYN == TCP_FLAG_SYN){
+			if(tcp.flags == TCP_FLAG_SYN){
 				// has syn but no ack
 				// send back syn+ack with special seq#
 				apply(reply_sa_table);
-			} else if(tcp.flags & TCP_FLAG_ACK == TCP_FLAG_ACK) {
+			} else if(tcp.flags == TCP_FLAG_ACK) {
 				// has ack but no syn
 				// make sure ack# is right
 				if(tcp.ack_no == meta.cookie_val1 + 1 or tcp.ack_no == meta.cookie_val2 + 1){
@@ -696,17 +696,17 @@ control conn_filter {
 			apply(mark_has_syn_table);
 		}
 	}else if(meta.no_proxy_table_entry_val == CONN_HAS_SYN){
-		if(tcp.flags & (TCP_FLAG_ACK | TCP_FLAG_SYN) == (TCP_FLAG_ACK | TCP_FLAG_SYN)){
+		if(tcp.flags == (TCP_FLAG_ACK | TCP_FLAG_SYN)){
 			// forward normally
 			apply(mark_foward_normally_table);
-		}else if (tcp.flags & TCP_FLAG_ACK == TCP_FLAG_ACK){
+		}else if (tcp.flags == TCP_FLAG_ACK){
 			// write 10 into no_proxy_table
 			apply(mark_has_ack_table);
-		}else if(tcp.flags & TCP_FLAG_FIN == TCP_FLAG_FIN){
+		}else if(tcp.flags == (TCP_FLAG_FIN | TCP_FLAG_ACK)){
 			apply(mark_no_conn_table);
 		}
 	}else if(meta.no_proxy_table_entry_val == CONN_HAS_ACK){
-		if(tcp.flags & TCP_FLAG_FIN == TCP_FLAG_FIN){
+		if(tcp.flags == (TCP_FLAG_FIN | TCP_FLAG_ACK)){
 			apply(mark_has_syn_table);
 		}else{
 			// forward normally
@@ -742,7 +742,7 @@ control ingress {
 			if(tcp.flags & TCP_FLAG_SYN == TCP_FLAG_SYN){
 				// add 1 to count-min sketch
 				apply(conn_count_inc_table);
-			} else if(tcp.flags == (TCP_FLAG_FIN | TCP_FLAG_ACK)){
+			} else if(tcp.flags & TCP_FLAG_FIN == TCP_FLAG_FIN){
 				// subtract 1 from count-min sketch
 				apply(conn_count_dec_table);
 			}

@@ -83,7 +83,7 @@ def turn_off_proxy():
     print table_set_default(proxy_status_table_name, proxy_off_action_name)
     proxy_status = 0
     
-def check_syn_and_ack_number(listen_interval, last_counter_val, syn_packets_speed_threshold=100):
+def check_syn_and_ack_number(listen_interval, last_counter_val, syn_packets_speed_threshold=500):
     print 'last_counter_val:', last_counter_val
     # meter_result = read_meter()
     counter_results = read_counters()
@@ -98,7 +98,7 @@ def check_syn_and_ack_number(listen_interval, last_counter_val, syn_packets_spee
         turn_on_proxy()
     # number of syn & valid ack packets
     print 'proxy_status:', proxy_status
-    if proxy_status == 1:
+    if proxy_status != 0:
         syn_increase = counter_results['syn'][0] - last_counter_val[0]
         vack_increase = counter_results['vack'][0] - last_counter_val[1]
         print 'syn_increase:', syn_increase, 'vack_increase:', vack_increase
