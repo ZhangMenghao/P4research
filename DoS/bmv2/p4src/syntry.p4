@@ -496,43 +496,17 @@ table mark_has_ack_table {
 }
 
 
-//********for mark_forward_normally_table********
+//********for mark_foward_normally_table********
 
 
-action mark_forward_normally() {
+action mark_foward_normally() {
 	modify_field(meta.to_drop, FALSE);
 }
-table mark_forward_normally_table {
+table mark_foward_normally_table {
 	actions {
-		mark_forward_normally;
+		mark_foward_normally;
 	}
 }
-
-//********for conn_has_syn_table********
-table conn_has_syn_table{
-	reads{
-		tcp.flags : exact;
-	}
-	actions{
-		_no_op;
-		mark_forward_normally;
-		mark_has_ack;
-		mark_no_conn;
-	}
-}
-
-//********for conn_has_ack_table********
-table conn_has_ack_table{
-	reads{
-		tcp.flags : exact;
-	}
-	actions{
-		mark_forward_normally;
-		mark_has_syn;
-	}
-}
-
-
 
 
 //********for set_size_count_table********
@@ -713,26 +687,31 @@ control conn_filter {
 	// if the corresponding entry is 10 then forward it normally (or write 00 if the packet is FIN ?)
 			
 	apply(check_no_proxy_table);
-	if((meta.no_proxy_table_entry_val == CONN_NOT_EXIST and (meta.syn_proxy_status == PROXY_ON or tcp.flags == TCP_FLAG_SYN))
-	or
-	(meta.no_proxy_table_entry_val == CONN_HAS_SYN and (tcp.flags == TCP_FLAG_SYN and meta.syn_proxy_status == PROXY_ON))){
-		apply(mark_no_conn_table);	
-		syn_proxy();
-	}
-	else if(meta.no_proxy_table_entry_val == CONN_NOT_EXIST){
-		// write 01 into no_proxy_table
-		apply(mark_has_syn_table);
+	if(meta.no_proxy_table_entry_val == CONN_NOT_EXIST){
+		if(meta.syn_proxy_status == PROXY_ON or tcp.flags & TCP_FLAG_SYN == 0){
+			// direct this packet to syn proxy
+			syn_proxy();
+		}else {
+			// write 01 into no_proxy_table
+			apply(mark_has_syn_table);
+		}
 	}else if(meta.no_proxy_table_entry_val == CONN_HAS_SYN){
-		// when proxy is off
-		// SYN=>mark_forward_normally
-		// SYN&ACK=>mark_forward_normally
-		// ACK=>mark_has_ack
-		// ACK&FIN=>mark_no_conn
-		apply(conn_has_syn_table);
+		if(tcp.flags == (TCP_FLAG_ACK | TCP_FLAG_SYN)){
+			// forward normally
+			apply(mark_foward_normally_table);
+		}else if (tcp.flags == TCP_FLAG_ACK){
+			// write 10 into no_proxy_table
+			apply(mark_has_ack_table);
+		}else if(tcp.flags == (TCP_FLAG_FIN | TCP_FLAG_ACK)){
+			apply(mark_no_conn_table);
+		}
 	}else if(meta.no_proxy_table_entry_val == CONN_HAS_ACK){
-		// ACK&FIN => mark_has_syn
-		// else => mark_forward_normally
-		apply(conn_has_ack_table);
+		if(tcp.flags == (TCP_FLAG_FIN | TCP_FLAG_ACK)){
+			apply(mark_has_syn_table);
+		}else{
+			// forward normally
+			apply(mark_foward_normally_table);
+		}
 	}
 }
 control ingress {
@@ -749,7 +728,7 @@ control ingress {
 	if(meta.in_black_list == FALSE){
 		apply(check_whitelist_table);
 		if(meta.wl_src_ip_entry_val != 0 or meta.wl_dst_ip_entry_val != 0){
-			apply(mark_forward_normally_table);
+			apply(mark_foward_normally_table);
 		}else {
 			// check proxy status
 			apply(check_proxy_status_table);
@@ -806,9 +785,9 @@ table send_frame {
 
 
 control egress {
-	if(standard_metadata.instance_type == 0){
-		// not cloned
-		apply(send_frame);
-	}
+if(standard_metadata.instance_type == 0){
+	// not cloned
+	apply(send_frame);
+}
 }
 

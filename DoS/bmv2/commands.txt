@@ -13,21 +13,14 @@ table_set_default confirm_connection_table confirm_connection
 table_set_default mark_no_conn_table mark_no_conn
 table_set_default mark_has_syn_table mark_has_syn
 table_set_default mark_has_ack_table mark_has_ack
-table_set_default mark_forward_normally_table mark_forward_normally
-table_set_default conn_has_syn_table _no_op
-table_set_default conn_has_ack_table mark_forward_normally
+table_set_default mark_foward_normally_table mark_foward_normally
 table_set_default ipv4_lpm_table _drop
 table_set_default forward_table _drop
 table_set_default send_frame _drop
 
 
 
-table_add conn_has_syn_table mark_forward_normally 0x2 =>
-table_add conn_has_syn_table mark_forward_normally 0x12 =>
-table_add conn_has_syn_table mark_has_ack 0x10 =>
-table_add conn_has_syn_table mark_no_conn 0x11 =>
 
-table_add conn_has_ack_table mark_has_syn 0x11 =>
 
 table_add calculate_syn_cookie_table calculate_syn_cookie_from_client 0x02&&&0x02 => 0xe 0xf 1
 table_add calculate_syn_cookie_table calculate_syn_cookie_from_client 0x10&&&0x10 => 0xe 0xf 1
