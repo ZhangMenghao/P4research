@@ -258,7 +258,7 @@ table check_no_proxy_table {
 
 action sub_delta_to_seq() {	
 	modify_field(meta.to_drop, FALSE);	
-	subtract_from_field(tcp.seq_no, meta.syn_proxy_table_entry_val >> 7);
+	subtract_from_field(tcp.seq_no, (meta.syn_proxy_table_entry_val >> 7) & 0xffffffff);
 }
 table sub_delta_to_seq_table {
 	actions {
@@ -272,7 +272,7 @@ table sub_delta_to_seq_table {
 
 action add_delta_to_ack() {		
 	modify_field(meta.to_drop, FALSE);
-	add_to_field(tcp.ack_no, meta.syn_proxy_table_entry_val >> 7);
+	add_to_field(tcp.ack_no, (meta.syn_proxy_table_entry_val >> 7) & 0xffffffff);
 }
 table add_delta_to_ack_table {
 	actions {
@@ -395,6 +395,9 @@ table open_window_table {
 
 action reply_sa() {		
 	modify_field(meta.to_drop, FALSE);
+
+	// empty the entry in proxy table
+	register_write(syn_proxy_table, meta.syn_proxy_table_hash_val, 0);
 	// reply client with syn+ack and a certain seq no, and window size 0
 	
 	// no need to exchange ethernet values
@@ -450,10 +453,17 @@ table confirm_connection_table {
 	}
 }
 
+//********for mark_forward_normally_table********
+action mark_forward_normally() {
+	modify_field(meta.to_drop, FALSE);
+}
+table mark_forward_normally_table {
+	actions {
+		mark_forward_normally;
+	}
+}
 
-//********for mark_no_conn_table********
-
-
+//********for mark_no_proxy_table********
 action mark_no_conn() {
 	modify_field(meta.to_drop, FALSE);
 	register_write(no_proxy_table, meta.no_proxy_table_hash_val, CONN_NOT_EXIST);
@@ -463,25 +473,10 @@ table mark_no_conn_table {
 		mark_no_conn;
 	}
 }
-
-
-//********for mark_has_syn_table********
-
-
 action mark_has_syn() {
 	modify_field(meta.to_drop, FALSE);
 	register_write(no_proxy_table, meta.no_proxy_table_hash_val, CONN_HAS_SYN);
 }
-table mark_has_syn_table {
-	actions {
-		mark_has_syn;
-	}
-}
-
-
-//********for mark_has_ack_table********
-
-
 action mark_has_ack() {
 	modify_field(meta.to_drop, FALSE);
 	register_write(no_proxy_table, meta.no_proxy_table_hash_val, CONN_HAS_ACK);
@@ -489,22 +484,17 @@ action mark_has_ack() {
 	register_write(whitelist_table, meta.src_ip_hash_val, 0x2 | meta.wl_src_ip_entry_val);
 
 }
-table mark_has_ack_table {
-	actions {
-		mark_has_ack;
+table mark_no_proxy_table{
+	reads{
+		meta.no_proxy_table_entry_val : exact;
+		tcp.flags : ternary;
 	}
-}
-
-
-//********for mark_foward_normally_table********
-
-
-action mark_foward_normally() {
-	modify_field(meta.to_drop, FALSE);
-}
-table mark_foward_normally_table {
-	actions {
-		mark_foward_normally;
+	actions{
+		_no_op;
+		mark_forward_normally;
+		mark_has_ack;
+		mark_has_syn;
+		mark_no_conn;
 	}
 }
 
@@ -638,33 +628,42 @@ control syn_proxy {
 	// it must be calculated.
 	// if it is not one of the three types above, it will be dropped in this table
 	apply(check_syn_proxy_table);
-	
-	if(meta.syn_proxy_table_entry_val & 0x1 == VALID){
-		if(standard_metadata.ingress_port == (meta.syn_proxy_table_entry_val & 0x7e) >> 1){
-			// it's from server
+	/* entry in syn_proxy_table
+	|32 bits offset|6 bits port(server port)|1 bit is_valid|
+	*/
+	if(meta.syn_proxy_table_entry_val & 0x1 == VALID and tcp.flags != TCP_FLAG_SYN){
+		// valid entry in syn_proxy_table
+		// and it's not a new connection
+		if(standard_metadata.ingress_port == ((meta.syn_proxy_table_entry_val & 0x7e) >> 1)){
+			// extract server port from the entry
+			// from server to client
 			// seq# - delta
-			if(tcp.flags == (TCP_FLAG_FIN | TCP_FLAG_ACK)){
-				// FIN
+			if(tcp.flags & (TCP_FLAG_FIN | TCP_FLAG_ACK) == (TCP_FLAG_FIN | TCP_FLAG_ACK)){
+				// it's a finishing packet from server
 				apply(empty_conn_in_proxy_table_table);
 			}else{
 				apply(sub_delta_to_seq_table);
 			}
 		}else {
-			// from client
+			// from client to server
 			// ack# + delta
 			apply(add_delta_to_ack_table);
 		}
 	}else {
-		if((tcp.flags == 0x12) and ((meta.syn_proxy_table_entry_val & 0x7f/*last 7 bits*/) == CONFIRMED_CONNECTION_MARK)){
-			// syn+ack
+		// no record in syn_proxy_table
+		if((tcp.flags == (TCP_FLAG_SYN | TCP_FLAG_ACK)) and ((meta.syn_proxy_table_entry_val & 0x7f) == CONFIRMED_CONNECTION_MARK)){/*last 7 bits*/
+			// syn+ack from server
+			// this connection has been acked
+			// open client's window and set record in syn_proxy_table
 			apply(open_window_table);
 		} else{
+			// calculate syn cookie
 			apply(calculate_syn_cookie_table);
 			if(tcp.flags == TCP_FLAG_SYN){
-				// has syn but no ack
-				// send back syn+ack with special seq#
+				// SYN packet
+				// send back syn+ack with syn cookie
 				apply(reply_sa_table);
-			} else if(tcp.flags == TCP_FLAG_ACK) {
+			} else if(tcp.flags & TCP_FLAG_ACK == TCP_FLAG_ACK) {
 				// has ack but no syn
 				// make sure ack# is right
 				if(tcp.ack_no == meta.cookie_val1 + 1 or tcp.ack_no == meta.cookie_val2 + 1){
@@ -679,40 +678,51 @@ control conn_filter {
 	// writing new logic
 	// all packets go through the first register array 'no_proxy_table'(2 bits per entry), entries of which are all set to 00 by default
 	// we're gonna use symmetry hash (hash to the same value for packets of both two directions)
+	// whatever the entry is, if proxy is on and packet is SYN
+	// direct it to syn proxy module
+	// else:
 	// if the corresponding entry is 00:
 	// 		if proxy is off and the incoming packet is SYN, then write 01 into the corresponding entry and forward
 	// 		else (proxy is on or incoming packet is not SYN), direct it to syn proxy module
-	// if the corresponding entry is 01 and the incoming packet is SYN+ACK, then forward normally
+	// if the corresponding entry is 01 and the incoming packet is SYN, SYN+ACK or RST, forward normally
 	// if the corresponding entry is 01 and the incoming packet is ACK, then write 10 into the corresponding entry and forward
-	// if the corresponding entry is 10 then forward it normally (or write 00 if the packet is FIN ?)
+	// if the corresponding entry is 01 and the incoming packet contains FIN, then write 00 into the corresponding entry and forward
+	// if the corresponding entry is 10 then forward it normally (or write 00 if the packet contains FIN)
 			
 	apply(check_no_proxy_table);
-	if(meta.no_proxy_table_entry_val == CONN_NOT_EXIST){
-		if(meta.syn_proxy_status == PROXY_ON or tcp.flags & TCP_FLAG_SYN == 0){
-			// direct this packet to syn proxy
-			syn_proxy();
-		}else {
+
+	if((meta.no_proxy_table_entry_val == CONN_NOT_EXIST and meta.syn_proxy_status == PROXY_ON)
+	or
+	(meta.no_proxy_table_entry_val == CONN_NOT_EXIST and tcp.flags != TCP_FLAG_SYN)
+	or
+	(tcp.flags == TCP_FLAG_SYN and meta.syn_proxy_status == PROXY_ON)){
+		apply(mark_no_conn_table);	
+		syn_proxy();
+	}
+	else{
+		// replace all logic with a match-action table
+		// this part rewrite entries in no_proxy_table
+		/*
+		if(meta.no_proxy_table_entry_val == CONN_NOT_EXIST){
+			// proxy is off and packet is SYN
 			// write 01 into no_proxy_table
 			apply(mark_has_syn_table);
+		}else if(meta.no_proxy_table_entry_val == CONN_HAS_SYN){
+			// when proxy is off
+			// SYN=>mark_forward_normally
+			// SYN&ACK=>mark_forward_normally
+			// RST=>mark_forward_normally
+			// ACK=>mark_has_ack
+			// ACK&FIN=>mark_no_conn
+			apply(conn_has_syn_table);
+		}else if(meta.no_proxy_table_entry_val == CONN_HAS_ACK){
+			// ACK&FIN => mark_has_syn
+			// else => mark_forward_normally
+			apply(conn_has_ack_table);
 		}
-	}else if(meta.no_proxy_table_entry_val == CONN_HAS_SYN){
-		if(tcp.flags == (TCP_FLAG_ACK | TCP_FLAG_SYN)){
-			// forward normally
-			apply(mark_foward_normally_table);
-		}else if (tcp.flags == TCP_FLAG_ACK){
-			// write 10 into no_proxy_table
-			apply(mark_has_ack_table);
-		}else if(tcp.flags == (TCP_FLAG_FIN | TCP_FLAG_ACK)){
-			apply(mark_no_conn_table);
-		}
-	}else if(meta.no_proxy_table_entry_val == CONN_HAS_ACK){
-		if(tcp.flags == (TCP_FLAG_FIN | TCP_FLAG_ACK)){
-			apply(mark_has_syn_table);
-		}else{
-			// forward normally
-			apply(mark_foward_normally_table);
-		}
-	}
+		*/
+		apply(mark_no_proxy_table);
+	} 
 }
 control ingress {
 
@@ -721,20 +731,26 @@ control ingress {
 		// only has syn
 		apply(syn_meter_table);
 	}
+	// check if it's in blacklist
 	apply(check_blacklist_table);
 	if(meta.bl_src_ip_entry_val != 0 or meta.bl_dst_ip_entry_val != 0){
 		apply(mark_in_blacklist_table);
 	}
 	if(meta.in_black_list == FALSE){
+		// if not in blacklist
+		// check if it's in whitelist
 		apply(check_whitelist_table);
 		if(meta.wl_src_ip_entry_val != 0 or meta.wl_dst_ip_entry_val != 0){
-			apply(mark_foward_normally_table);
+			apply(mark_forward_normally_table);
 		}else {
-			// check proxy status
+			// check syn proxy status (on or off)
 			apply(check_proxy_status_table);
+			// no_proxy_table and syn proxy
 			conn_filter();
 		}
 		
+		// unspoofing module
+		// packets statistics
 		if(meta.to_drop == FALSE){
 			// packets size count
 			apply(set_size_count_table);
@@ -785,9 +801,9 @@ table send_frame {
 
 
 control egress {
-if(standard_metadata.instance_type == 0){
-	// not cloned
-	apply(send_frame);
-}
+	if(standard_metadata.instance_type == 0){
+		// not cloned
+		apply(send_frame);
+	}
 }
 

@@ -4,23 +4,30 @@ table_set_default sub_delta_to_seq_table sub_delta_to_seq
 table_set_default add_delta_to_ack_table add_delta_to_ack
 table_set_default check_syn_proxy_table read_syn_proxy_table_entry_value
 table_set_default calculate_syn_cookie_table _drop
-table_set_default check_proxy_status_table turn_off_proxy
+table_set_default check_proxy_status_table turn_on_proxy
 table_set_default drop_table _drop
 table_set_default empty_conn_in_proxy_table_table empty_conn_in_proxy_table
 table_set_default open_window_table open_window
 table_set_default reply_sa_table reply_sa
 table_set_default confirm_connection_table confirm_connection
+table_set_default mark_forward_normally_table mark_forward_normally
 table_set_default mark_no_conn_table mark_no_conn
-table_set_default mark_has_syn_table mark_has_syn
-table_set_default mark_has_ack_table mark_has_ack
-table_set_default mark_foward_normally_table mark_foward_normally
+table_set_default mark_no_proxy_table _no_op
+
 table_set_default ipv4_lpm_table _drop
 table_set_default forward_table _drop
 table_set_default send_frame _drop
 
 
 
-
+table_add mark_no_proxy_table mark_has_syn 0 0x0&&&0x0 => 1
+table_add mark_no_proxy_table mark_forward_normally 1 0x02&&&0x3f => 1
+table_add mark_no_proxy_table mark_forward_normally 1 0x12&&&0x3f => 1
+table_add mark_no_proxy_table mark_forward_normally 1 0x04&&&0x04 => 1
+table_add mark_no_proxy_table mark_has_ack 1 0x10&&&0x12 => 1
+table_add mark_no_proxy_table mark_no_conn 1 0x11&&&0x11 => 1
+table_add mark_no_proxy_table mark_has_syn 2 0x11&&&0x11 => 10
+table_add mark_no_proxy_table mark_forward_normally 2 0x00&&&0x00 => 1
 
 table_add calculate_syn_cookie_table calculate_syn_cookie_from_client 0x02&&&0x02 => 0xe 0xf 1
 table_add calculate_syn_cookie_table calculate_syn_cookie_from_client 0x10&&&0x10 => 0xe 0xf 1
