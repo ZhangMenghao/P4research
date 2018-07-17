@@ -29,7 +29,10 @@
 #define INVALID 0x0
 #define VALID 0x1
 
-#define CONFIRMED_CONNECTION_MARK (0x3f << 1)/*6 bits << 1 -> 7 bits*/
+#define CONFIRMED_CONNECTION_MARK (0x7e)/*last 7 bits*/
+
+// #define NO_PROXY_TABLE_SIZE 8192
+// #define SYN_PROXY_TABLE_SIZE 8192
 
 
 #include "headers.p4"
@@ -95,6 +98,10 @@ fields {
 	hh_size_count_val1 : 32;
 	hh_conn_count_val0 : 32;
 	hh_conn_count_val1 : 32; 
+
+	/*************evaluation purposes*************/
+	proxy_table_valid_entry_counter_tmp_val : 32;
+	/*********************************************/
 }
 
 }
@@ -156,6 +163,13 @@ counter valid_ack_counter {
 	static : confirm_connection_table;
 	instance_count : 1;
 }
+/*************evaluation purposes*************/
+register proxy_table_valid_entry_counter
+{
+    width : 32;
+    instance_count:1;
+}
+/*********************************************/
 //********REGISTERS ENDS********
 
 
@@ -362,6 +376,12 @@ action empty_conn_in_proxy_table() {
 	subtract_from_field(tcp.seq_no, meta.syn_proxy_table_entry_val >> 7);
 	// empty the corresponding entry in syn_proxy_table
 	register_write(syn_proxy_table, meta.syn_proxy_table_hash_val, 0);
+
+	/*************evaluation purposes*************/
+	register_read(meta.proxy_table_valid_entry_counter_tmp_val, proxy_table_valid_entry_counter, 0);
+	subtract_from_field(meta.proxy_table_valid_entry_counter_tmp_val, meta.syn_proxy_table_entry_val & 0x1);
+	register_write(proxy_table_valid_entry_counter, 0, meta.proxy_table_valid_entry_counter_tmp_val);
+	/*********************************************/
 }
 table empty_conn_in_proxy_table_table {
 	actions {
@@ -382,6 +402,11 @@ action open_window() {
 	modify_field(tcp.seq_no, (meta.syn_proxy_table_entry_val & 0x7fffffff80) >> 7);
 	// write offset, port, is_Valid into syn_proxy_table
 	register_write(syn_proxy_table, meta.syn_proxy_table_hash_val, (meta.seq_no_offset << 7) | (standard_metadata.ingress_port << 1) | 0x1);
+	/*************evaluation purposes*************/
+	register_read(meta.proxy_table_valid_entry_counter_tmp_val, proxy_table_valid_entry_counter, 0);
+	add_to_field(meta.proxy_table_valid_entry_counter_tmp_val, 1);
+	register_write(proxy_table_valid_entry_counter, 0, meta.proxy_table_valid_entry_counter_tmp_val);
+	/*********************************************/
 }
 table open_window_table {
 	actions {
@@ -398,6 +423,11 @@ action reply_sa() {
 
 	// empty the entry in proxy table
 	register_write(syn_proxy_table, meta.syn_proxy_table_hash_val, 0);
+	/*************evaluation purposes*************/
+	register_read(meta.proxy_table_valid_entry_counter_tmp_val, proxy_table_valid_entry_counter, 0);
+	subtract_from_field(meta.proxy_table_valid_entry_counter_tmp_val, meta.syn_proxy_table_entry_val & 0x1);
+	register_write(proxy_table_valid_entry_counter, 0, meta.proxy_table_valid_entry_counter_tmp_val);
+	/*********************************************/
 	// reply client with syn+ack and a certain seq no, and window size 0
 	
 	// no need to exchange ethernet values
@@ -636,14 +666,15 @@ control syn_proxy {
 		// and it's not a new connection
 		if(standard_metadata.ingress_port == ((meta.syn_proxy_table_entry_val & 0x7e) >> 1)){
 			// extract server port from the entry
+
 			// from server to client
 			// seq# - delta
-			if(tcp.flags & (TCP_FLAG_FIN | TCP_FLAG_ACK) == (TCP_FLAG_FIN | TCP_FLAG_ACK)){
-				// it's a finishing packet from server
-				apply(empty_conn_in_proxy_table_table);
-			}else{
+			// if(tcp.flags & (TCP_FLAG_FIN | TCP_FLAG_ACK) == (TCP_FLAG_FIN | TCP_FLAG_ACK)){
+			// 	// it's a finishing packet from server
+			// 	apply(empty_conn_in_proxy_table_table);
+			// }else{
 				apply(sub_delta_to_seq_table);
-			}
+			// }
 		}else {
 			// from client to server
 			// ack# + delta
@@ -661,12 +692,15 @@ control syn_proxy {
 			apply(calculate_syn_cookie_table);
 			if(tcp.flags == TCP_FLAG_SYN){
 				// SYN packet
-				// send back syn+ack with syn cookie
+				// clear the corresponding entry
+				// and send back syn+ack with syn cookie
 				apply(reply_sa_table);
-			} else if(tcp.flags & TCP_FLAG_ACK == TCP_FLAG_ACK) {
+			} else if(tcp.flags & 0x12 == TCP_FLAG_ACK) {
 				// has ack but no syn
 				// make sure ack# is right
 				if(tcp.ack_no == meta.cookie_val1 + 1 or tcp.ack_no == meta.cookie_val2 + 1){
+					// mark the entry as 'has been acked'
+					// and establish connection with server
 					apply(confirm_connection_table);
 				}
 			}
