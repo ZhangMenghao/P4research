@@ -1,0 +1,819 @@
+{
+  "ProgramInfo": {
+    "ProgramName": "synproxy", 
+    "BuildDate": "Mon May 21 03:04:16 2018", 
+    "CompilerVersion": "4.1.1"
+  }, 
+  "HashJsonNode": {
+    "TableCount": 5, 
+    "ProxyTables": {}, 
+    "AllTables": {
+      "read_seq": {
+        "2": [
+          {
+            "0": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "1": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "2": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "3": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "4": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "5": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "6": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "7": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "8": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "9": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "10": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "11": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "12": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "13": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "14": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "15": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ]
+          }
+        ], 
+        "Handle": 16777224
+      }, 
+      "write_time_in": {
+        "1": [
+          {
+            "0": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "1": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "2": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "3": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "4": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "5": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "6": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "7": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "8": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "9": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "10": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "11": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "12": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "13": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "14": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "15": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ]
+          }
+        ], 
+        "Handle": 16777219
+      }, 
+      "write_time_eg": {
+        "1": [
+          {
+            "0": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "1": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "2": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "3": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "4": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "5": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "6": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "7": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "8": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "9": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "10": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "11": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "12": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "13": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "14": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "15": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ]
+          }
+        ], 
+        "Handle": 16777221
+      }, 
+      "write_seq": {
+        "2": [
+          {
+            "0": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "1": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "2": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "3": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "4": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "5": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "6": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "7": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "8": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "9": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "10": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "11": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "12": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "13": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "14": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "15": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ]
+          }
+        ], 
+        "Handle": 16777226
+      }, 
+      "read_seq_reverse": {
+        "2": [
+          {
+            "0": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "1": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "2": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "3": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "4": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "5": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "6": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "7": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "8": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "9": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "10": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "11": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "12": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "13": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "14": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ], 
+            "15": [
+              {}, 
+              {
+                "seed": 0
+              }
+            ]
+          }
+        ], 
+        "Handle": 16777225
+      }
+    }, 
+    "HashFieldCount": 5
+  }, 
+  "EntryFormatNode": {
+    "ExmEntryFormat": {
+      "AllExmTables": [], 
+      "TotalExmTables": 20
+    }, 
+    "Phase0EntryFormat": {
+      "Phase0Action": [], 
+      "Phase0TableCount": 0, 
+      "Phase0MatchFormat": []
+    }, 
+    "RangeTables": [], 
+    "LearnQuantaFormat": [
+      {
+        "notify_ack_fn": "p4_pd_synproxy_hash_fields_notify_ack", 
+        "lq_cfg_type": 0, 
+        "handle": 553648129, 
+        "name": "hash_fields", 
+        "msg_type": "p4_pd_synproxy_hash_fields_digest_msg_t", 
+        "entry_type": "p4_pd_synproxy_hash_fields_digest_entry_t", 
+        "deregister_fn": "p4_pd_synproxy_hash_fields_deregister", 
+        "cb_fn_type": "p4_pd_synproxy_hash_fields_digest_notify_cb", 
+        "register_fn": "p4_pd_synproxy_hash_fields_register", 
+        "fields": {
+          "ipv4_srcAddr": {
+            "FIELDWIDTH": 32, 
+            "BYTEOFFSET": 1, 
+            "STARTBIT": 7
+          }
+        }
+      }
+    ], 
+    "MatchTableSpec": [
+      {
+        "TableHandle": 16777234, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777232, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777222, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777225, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777217, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777229, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777231, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777223, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777226, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777220, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777221, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777224, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777233, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777219, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777227, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777230, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777236, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777228, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777218, 
+        "SPECFORMAT": []
+      }, 
+      {
+        "TableHandle": 16777235, 
+        "SPECFORMAT": [
+          {
+            "MATCHTYPE": "ternary", 
+            "FIELDWIDTH": 32, 
+            "FIELDNAME": "ipv4_srcAddr", 
+            "STARTBIT": 0
+          }
+        ]
+      }
+    ], 
+    "TindEntryFormat": {
+      "TotalTindTables": 7, 
+      "AllTindTables": [
+        {
+          "TindTableName": "relay_session_table", 
+          "TindTableHandle": 16777229, 
+          "TindTableFormat": [
+            {
+              "TindMatchEntryFormat": [
+                {
+                  "Entry": 0, 
+                  "EntryFieldCount": 0, 
+                  "EntryFormat": []
+                }
+              ], 
+              "TindActionHandleCount": 1, 
+              "TindMatchEntryFieldCount": 0, 
+              "TindActionImmediateCount": 0, 
+              "TindMatchEntryCount": 1, 
+              "TindActionHandles": [
+                {
+                  "OVERRIDE_STAT_FULL_ADDR": 0, 
+                  "OVERRIDE_METER_ADDR_PFE": false, 
+                  "OVERRIDE_STAT_ADDR_PFE": false, 
+                  "IMMEDIATE": {
+                    "table_name": "set_heavy_hitter_count_table_1", 
+                    "action_name": "sendh2ack", 
+                    "next_tbl": 0, 
+                    "next_tbl_full": 64, 
+                    "instr": 1
+                  }, 
+                  "OVERRIDE_STATEFUL_ADDR_PFE": false, 
+                  "OVERRIDE_METER_FULL_ADDR": 0, 
+                  "ImmediateCount": 0, 
+                  "OVERRIDE_STAT_ADDR": false, 
+                  "ACTION_HDL": 536870971, 
+                  "OVERRIDE_STATEFUL_FULL_ADDR": 0, 
+                  "OVERRIDE_METER_ADDR": false, 
+                  "OVERRIDE_STATEFUL_ADDR": false
+                }
+              ], 
+              "Stage": 3
+            }
+          ]
+        }, 
+        {
+          "TindTableName": "outbound_tran_table", 
+          "TindTableHandle": 16777231, 
+          "TindTableFormat": [
+            {
+              "TindMatchEntryFormat": [
+                {
+                  "Entry": 0, 
+                  "EntryFieldCount": 0, 
+                  "EntryFormat": []
+                }
+              ], 
+              "TindActionHandleCount": 1, 
+              "TindMatchEntryFieldCount": 0, 
+              "TindActionImmediateCount": 0, 
+              "TindMatchEntryCount": 1, 
+              "TindActionHandles": [
+                {
+                  "OVERRIDE_STAT_FULL_ADDR": 0, 
+                  "OVERRIDE_METER_ADDR_PFE": false, 
+                  "OVERRIDE_STAT_ADDR_PFE": false, 
+                  "IMMEDIATE": {
+                    "table_name": "set_heavy_hitter_count_table_1", 
+                    "action_name": "outbound_transformation", 
+                    "next_tbl": 0, 
+                    "next_tbl_full": 64, 
+                    "instr": 1
+                  }, 
+                  "OVERRIDE_STATEFUL_ADDR_PFE": false, 
+                  "OVERRIDE_METER_FULL_ADDR": 0, 
+                  "ImmediateCount": 0, 
+                  "OVERRIDE_STAT_ADDR": false, 
+                  "ACTION_HDL": 536870979, 
+                  "OVERRIDE_STATEFUL_FULL_ADDR": 0, 
+                  "OVERRIDE_METER_ADDR": false, 
+                  "OVERRIDE_STATEFUL_ADDR": false
+                }
+              ], 
+              "Stage": 3
+            }
+          ]
+        }, 
+        {
+          "TindTableName": "session_init_table", 
+          "TindTableHandle": 16777227, 
+          "TindTableFormat": [
+            {
+              "TindMatchEntryFormat": [
+                {
+                  "Entry": 0, 
+                  "EntryFieldCount": 0, 
+                  "EntryFormat": []
+                }
+              ], 
+              "TindActionHandleCount": 1, 
+              "TindMatchEntryFieldCount": 0, 
+              "TindActionImmediateCount": 0, 
+              "TindMatchEntryCount": 1, 
+              "TindActionHandles": [
+                {
+                  "OVERRIDE_STAT_FULL_ADDR": 0, 
+                  "OVERRIDE_METER_ADDR_PFE": false, 
+                  "OVERRIDE_STAT_ADDR_PFE": false, 
+                  "IMMEDIATE": {
+                    "table_name": "set_heavy_hitter_count_table_1", 
+                    "action_name": "sendback_sa", 
+                    "next_tbl": 0, 
+                    "next_tbl_full": 64, 
+                    "instr": 1
+                  }, 
+                  "OVERRIDE_STATEFUL_ADDR_PFE": false, 
+                  "OVERRIDE_METER_FULL_ADDR": 0, 
+                  "ImmediateCount": 0, 
+                  "OVERRIDE_STAT_ADDR": false, 
+                  "ACTION_HDL": 536870947, 
+                  "OVERRIDE_STATEFUL_FULL_ADDR": 0, 
+                  "OVERRIDE_METER_ADDR": false, 
+                  "OVERRIDE_STATEFUL_ADDR": false
+                }
+              ], 
+              "Stage": 2
+            }
+          ]
+        }, 
+        {
+          "TindTableName": "inbound_tran_table", 
+          "TindTableHandle": 16777230, 
+          "TindTableFormat": [
+            {
+              "TindMatchEntryFormat": [
+                {
+                  "Entry": 0, 
+                  "EntryFieldCount": 0, 
+                  "EntryFormat": []
+                }
+              ], 
+              "TindActionHandleCount": 1, 
+              "TindMatchEntryFieldCount": 0, 
+              "TindActionImmediateCount": 0, 
+              "TindMatchEntryCount": 1, 
+              "TindActionHandles": [
+                {
+                  "OVERRIDE_STAT_FULL_ADDR": 0, 
+                  "OVERRIDE_METER_ADDR_PFE": false, 
+                  "OVERRIDE_STAT_ADDR_PFE": false, 
+                  "IMMEDIATE": {
+                    "table_name": "set_heavy_hitter_count_table_1", 
+                    "action_name": "inbound_transformation", 
+                    "next_tbl": 0, 
+                    "next_tbl_full": 64, 
+                    "instr": 1
+                  }, 
+                  "OVERRIDE_STATEFUL_ADDR_PFE": false, 
+                  "OVERRIDE_METER_FULL_ADDR": 0, 
+                  "ImmediateCount": 0, 
+                  "OVERRIDE_STAT_ADDR": false, 
+                  "ACTION_HDL": 536870976, 
+                  "OVERRIDE_STATEFUL_FULL_ADDR": 0, 
+                  "OVERRIDE_METER_ADDR": false, 
+                  "OVERRIDE_STATEFUL_ADDR": false
+                }
+              ], 
+              "Stage": 3
+            }
+          ]
+        }, 
