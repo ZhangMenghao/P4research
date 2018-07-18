@@ -35,7 +35,6 @@ header_type meta_t {
 		tcp_fin:1;
 		tcp_seqNo:32;
 		tcp_h1seq:32;
-		tcp_seqOffset:32;
 		tcp_ackNo:32;
 		tcp_h2seq:32;
 		tcp_session_map_index :  16;
@@ -51,6 +50,16 @@ header_type meta_t {
 		thres1: 32;
 		over_thres2: 1;
 		thres2: 32;
+
+		// syn & valid ack counter
+		syn_counter_val : 32;
+		vack_counter_val : 32;
+
+		// proxy status
+		proxy_status : 1;
+
+		// no_proxy_table entry
+		no_proxy_table_entry_val : 2;
 		
 	}
 
@@ -90,6 +99,109 @@ field_list_calculation reverse_tcp_session_map_hash{
 	output_width:16;
 	
 }	
+
+// added by kongx
+// syn & vack counter
+register syn_count_register{
+	width : 32;
+	instance_count : 1;
+}
+blackbox stateful_alu read_syn_count{
+	reg : syn_count_register;
+	update_lo_1_value : register_lo;
+	output_value : alu_lo;
+	output_dst : meta.syn_counter_val;
+}
+blackbox stateful_alu write_syn_count{
+	reg : syn_count_register;
+	update_lo_1_value : meta.syn_counter_val;
+	output_value : alu_lo;
+	output_dst : meta.syn_counter_val;
+}
+action syn_count()
+{
+	read_syn_count.execute_stateful_alu(0);
+	modify_field(meta.syn_counter_val, meta.syn_counter_val + 1);
+	write_syn_count.execute_stateful_alu(1);
+}
+table syn_counter_table {
+	actions { syn_count;}
+}
+register vack_count_register{
+	width : 32;
+	instance_count : 1;
+}
+blackbox stateful_alu read_vack_count{
+	reg : vack_count_register;
+	update_lo_1_value : register_lo;
+	output_value : alu_lo;
+	output_dst : meta.vack_counter_val;
+}
+blackbox stateful_alu write_vack_count{
+	reg : vack_count_register;
+	update_lo_1_value : meta.vack_counter_val;
+	output_value : alu_lo;
+	output_dst : meta.vack_counter_val;
+}
+action vack_count()
+{
+	read_vack_count.execute_stateful_alu(0);
+	modify_field(meta.vack_counter_val, meta.vack_counter_val + 1);
+	write_vack_count.execute_stateful_alu(1);
+}
+table vack_counter_table {
+	actions { vack_count;}
+}
+
+action turn_proxy_on()
+{
+	modify_field(meta.proxy_status, 1);
+}
+action turn_proxy_off()
+{
+	modify_field(meta.proxy_status, 0);
+}
+table check_proxy_status_table{
+	actions{
+		turn_proxy_on;
+		turn_proxy_off;
+	}
+}
+ 
+register no_proxy_table{
+	width : 2;
+	instance_count : 65536;
+}
+blackbox stateful_alu read_no_proxy_entry{
+	reg : no_proxy_table;
+	update_lo_1_value : register_lo;
+        output_value : alu_lo;
+        output_dst: meta.no_proxy_table_entry_val;
+}
+blackbox stateful_alu write_no_proxy_entry{
+        reg : no_proxy_table;
+        update_lo_1_value : meta.no_proxy_table_entry_val;
+        output_value : alu_lo;
+        output_dst : meta.no_proxy_table_entry_val;
+}
+action read_no_proxy_entry()
+{
+	read_no_proxy_entry.execute_stateful_alu(meta.tcp_session_map_index);
+}
+table read_no_proxy_entry_table {
+	actions { read_no_proxy_entry;}
+}
+action read_no_proxy_entry_reverse()
+{
+	read_no_proxy_entry.execute_stateful_alu(meta.reverse_tcp_session_map_index);
+}
+table read_no_proxy_entry_reverse_table {
+	actions { read_no_proxy_entry_reverse;}
+}
+
+
+
+
 
 //TOFINO: We have to separate read and write, because we cannot refer to more than 3 metadata in a SALU.
 register h2_seq{
@@ -196,6 +308,7 @@ action inbound_transformation()
 	add_to_field(tcp.ackNo,meta.tcp_h2seq);
 
 	//subtract_from_field(tcp.checksum,meta.tcp_h2seq);
+	
 
 	modify_field(ipv4.diffserv,meta.tcp_session_map_index);
 	modify_field(ipv4.identification,meta.reverse_tcp_session_map_index);
@@ -212,7 +325,6 @@ table inbound_tran_table2
 
 action inbound_transformation2()
 {
-	subtract_from_field(tcp.checksum,tcp.ackNo);
 }
 
 table inbound_tran_table
@@ -223,11 +335,7 @@ table inbound_tran_table
 }
 action outbound_transformation()
 {
-	//add_to_field(tcp.ackNo,meta.tcp_h2seq);
-	add_to_field(tcp.ackNo,1234);
-	//subtract_from_field(tcp.checksum,meta.tcp_h2seq);
-        modify_field(ipv4.ttl,16);
-
+	subtract_from_field(tcp.seqNo,meta.tcp_h2seq);
 	modify_field(ig_intr_md_for_tm.ucast_egress_port, 128);
 }
 
@@ -475,27 +583,17 @@ action init_action(thres1,thres2){
 	modify_field(meta.thres2,thres2);
 }
 
-control ingress {
+control syn_proxy {
 
-	apply(update_countt);
-	apply(time32_in);
-	apply(write_time_in);
-
-
-	apply(init);
-	apply(acl);
-	if(ig_intr_md.ingress_port == 128){
-		apply(session_check);
-	}
-	else {
-		apply(session_check_reverse);
-	}
 
 	if(meta.tcp_syn == 1 and meta.tcp_ack == 1){
 		apply(write_seq);
 	}
-	else{
+	else if (meta.in_port == 128){
 		apply(read_seq);
+	}
+	else if (meta.in_port == 136){
+		apply(read_seq_reverse);
 	}
 
 	if (meta.tcp_syn == 1 and meta.tcp_ack == 0)
@@ -518,9 +616,58 @@ control ingress {
 		else if	(meta.in_port == 128)
 		{
 			apply(inbound_tran_table);
-			apply(inbound_tran_table2);
+			//apply(inbound_tran_table2);
 		}
 	}
+}
+
+control conn_filter {
+	apply(check_proxy_status_table);
+
+	// calculate index
+	if(ig_intr_md.ingress_port == 128){
+		apply(session_check);
+	}
+	else {
+		apply(session_check_reverse);
+	}
+
+	if (meta.in_port == 128){
+		apply(read_no_proxy_entry_table);
+	}
+	else if (meta.in_port == 136){
+		apply(read_no_proxy_entry_reverse_table);
+	}
+	
+	
+	if((meta.no_proxy_table_entry_val == 0 and meta.proxy_status == 1)
+	or
+	(meta.no_proxy_table_entry_val == 0 and meta.tcp_syn == 0)
+	or
+	(meta.tcp_syn == 1 and meta.proxy_status == 1)){
+		apply(mark_no_conn_table);	
+		syn_proxy();
+	}
+	else{
+		apply(mark_no_proxy_table);
+	} 
+}
+
+control ingress {
+
+	apply(update_countt);
+	apply(time32_in);
+	apply(write_time_in);
+
+
+	apply(init);
+	apply(acl);
+
+	//2-bit
+	if(meta.tcp_syn == 1){
+		apply(syn_counter_table);
+	}
+	conn_filter();
 	
 	apply(set_heavy_hitter_count_table_1);
 	apply(set_heavy_hitter_count_table_2);
@@ -532,4 +679,3 @@ control egress {
 	apply(time32_eg);
 	apply(write_time_eg);
 }
-
