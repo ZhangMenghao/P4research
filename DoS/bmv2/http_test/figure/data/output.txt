@@ -1,6 +1,3 @@
-last_counter_val: [-1, -1]
-counter_results: {'vack': (0, 0), 'syn': (0, 0)}
-proxy_table_entry_counter: 0
 
 
 last_counter_val: [0, 0]
@@ -730,7 +727,3 @@ counter_results: {'vack': (320, 21120), 'syn': (16523, 958806)}
 proxy_status: 0
 proxy_table_entry_counter: 0
 
-
-last_counter_val: [16523, 320]
-counter_results: {'vack': None, 'syn': (16549, 960730)}
-proxy_status: 0

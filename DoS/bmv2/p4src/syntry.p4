@@ -66,7 +66,7 @@ fields {
 	to_drop : 1;
 	in_black_list : 1;
 
-	// seq# offset  
+	// seq# offset
 	seq_no_offset : 32;
 
 	// for syn-cookie
@@ -97,7 +97,7 @@ fields {
 	hh_size_count_val0 : 32;
 	hh_size_count_val1 : 32;
 	hh_conn_count_val0 : 32;
-	hh_conn_count_val1 : 32; 
+	hh_conn_count_val1 : 32;
 
 	/*************evaluation purposes*************/
 	proxy_table_valid_entry_counter_tmp_val : 32;
@@ -270,7 +270,7 @@ table check_no_proxy_table {
 //********for sub_delta_to_seq_table********
 
 
-action sub_delta_to_seq() {	
+action sub_delta_to_seq() {
 	modify_field(meta.to_drop, FALSE);	
 	subtract_from_field(tcp.seq_no, (meta.syn_proxy_table_entry_val >> 7) & 0xffffffff);
 }
@@ -284,7 +284,7 @@ table sub_delta_to_seq_table {
 //********for add_delta_to_ack_table********
 
 
-action add_delta_to_ack() {		
+action add_delta_to_ack() {
 	modify_field(meta.to_drop, FALSE);
 	add_to_field(tcp.ack_no, (meta.syn_proxy_table_entry_val >> 7) & 0xffffffff);
 }
@@ -298,7 +298,7 @@ table add_delta_to_ack_table {
 //********for check_syn_proxy_table********
 
 
-action read_syn_proxy_table_entry_value() {		
+action read_syn_proxy_table_entry_value() {
 	modify_field_with_hash_based_offset(meta.syn_proxy_table_hash_val, 0, tcp_five_tuple_hash, SYN_PROXY_TABLE_SIZE);
 	register_read(meta.syn_proxy_table_entry_val, syn_proxy_table, meta.syn_proxy_table_hash_val);
 }
@@ -324,7 +324,7 @@ action calculate_syn_cookie_from_server(key1, key2){
 	modify_field(meta.cookie_key1, key1);
 	modify_field(meta.cookie_key2, key2);
 	modify_field_with_hash_based_offset(meta.cookie_val1, 0, syn_cookie_key1_reverse_calculation, 65536);/*could be larger*/
-	modify_field_with_hash_based_offset(meta.cookie_val2, 0, syn_cookie_key2_reverse_calculation, 65536);/*could be larger*/	
+	modify_field_with_hash_based_offset(meta.cookie_val2, 0, syn_cookie_key2_reverse_calculation, 65536);/*could be larger*/
 }
 table calculate_syn_cookie_table {
 	reads {
@@ -422,7 +422,7 @@ table open_window_table {
 //********for reply_sa_table********
 
 
-action reply_sa() {		
+action reply_sa() {
 	modify_field(meta.to_drop, FALSE);
 
 	// empty the entry in proxy table
@@ -433,7 +433,7 @@ action reply_sa() {
 	register_write(proxy_table_valid_entry_counter, 0, meta.proxy_table_valid_entry_counter_tmp_val);
 	/*********************************************/
 	// reply client with syn+ack and a certain seq no, and window size 0
-	
+
 	// no need to exchange ethernet values
 	// since forward table will do this for us
 	// // exchange src-eth, dst-eth
@@ -479,7 +479,7 @@ action confirm_connection() {
 	modify_field(tcp.flags, TCP_FLAG_SYN);
 	// set ack# 0 (optional)
 	modify_field(tcp.ack_no, 0);
-	
+
 
 	// count: valid ack
 	count(valid_ack_counter, 0);
@@ -732,7 +732,7 @@ control conn_filter {
 	// if the corresponding entry is 01 and the incoming packet is ACK, then write 10 into the corresponding entry and forward
 	// if the corresponding entry is 01 and the incoming packet contains FIN, then write 00 into the corresponding entry and forward
 	// if the corresponding entry is 10 then forward it normally (or write 00 if the packet contains FIN)
-			
+
 	apply(check_no_proxy_table);
 
 	if((meta.no_proxy_table_entry_val == CONN_NOT_EXIST and meta.syn_proxy_status == PROXY_ON)
@@ -740,7 +740,7 @@ control conn_filter {
 	(meta.no_proxy_table_entry_val == CONN_NOT_EXIST and tcp.flags != TCP_FLAG_SYN)
 	or
 	(tcp.flags == TCP_FLAG_SYN and meta.syn_proxy_status == PROXY_ON)){
-		apply(mark_no_conn_table);	
+		apply(mark_no_conn_table);
 		syn_proxy();
 	}
 	else{
@@ -766,7 +766,7 @@ control conn_filter {
 		}
 		*/
 		apply(mark_no_proxy_table);
-	} 
+	}
 }
 control ingress {
 
@@ -792,7 +792,7 @@ control ingress {
 			// no_proxy_table and syn proxy
 			conn_filter();
 		}
-		
+
 		// unspoofing module
 		// packets statistics
 		if(meta.to_drop == FALSE){
@@ -807,10 +807,10 @@ control ingress {
 				apply(conn_count_dec_table);
 			}
 			// TODO: bug. Could add server addr to blacklist
-			if((meta.hh_size_count_val0 > HH_SIZE_THRESHOLD and 
+			if((meta.hh_size_count_val0 > HH_SIZE_THRESHOLD and
 				meta.hh_size_count_val1 > HH_SIZE_THRESHOLD)
 				or
-				(meta.hh_conn_count_val0 > HH_CONN_THRESHOLD and 
+				(meta.hh_conn_count_val0 > HH_CONN_THRESHOLD and
 				meta.hh_conn_count_val1 > HH_CONN_THRESHOLD)){
 				apply(add_to_blacklist_table);
 			}
