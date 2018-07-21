@@ -82,7 +82,7 @@ def turn_off_proxy():
     print 'Turning off proxy...'
     print table_set_default(proxy_status_table_name, proxy_off_action_name)
     proxy_status = 0
-    
+
 def check_syn_and_ack_number(listen_interval, last_counter_val, syn_packets_speed_threshold=500):
     print 'last_counter_val:', last_counter_val
     # meter_result = read_meter()
@@ -144,7 +144,7 @@ def main():
         # update_white_list(10)
         print '\n'
         time.sleep(listen_interval)
-    
+
 
 if __name__ == '__main__':
     main()
