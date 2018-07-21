@@ -14,7 +14,7 @@ if __name__ == '__main__':
     threads = []
     
 
-    for o in range(10):
+    for o in range(60):
         th = threading.Thread(target=execCmd)
         th.start()
         threads.append(th)

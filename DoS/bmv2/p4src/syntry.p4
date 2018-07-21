@@ -505,9 +505,12 @@ action mark_no_conn() {
 	modify_field(meta.to_drop, FALSE);
 	register_write(no_proxy_table, meta.no_proxy_table_hash_val, CONN_NOT_EXIST);
 }
+action mark_no_conn_could_drop() {
+	register_write(no_proxy_table, meta.no_proxy_table_hash_val, CONN_NOT_EXIST);
+}
 table mark_no_conn_table {
 	actions {
-		mark_no_conn;
+		mark_no_conn_could_drop;
 	}
 }
 action mark_has_syn() {
