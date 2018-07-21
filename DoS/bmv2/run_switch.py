@@ -97,7 +97,7 @@ def turn_off_proxy():
     cli_table_set_default(proxy_status_table_name, proxy_off_action_name)
     proxy_status = 0
     
-def check_syn_and_ack_number(listen_interval, last_counter_val, syn_packets_speed_threshold=500, auto_on=True, auto_off=True):
+def check_syn_and_ack_number(listen_interval, last_counter_val, syn_packets_speed_threshold=1500, auto_on=True, auto_off=True):
     print 'last_counter_val:', last_counter_val
     # meter_result = cli_read_meter()
     counter_results = read_counters()
@@ -149,10 +149,10 @@ def check_proxy_table_entry_num():
 
 def main():
     global proxy_status
-    listen_interval = 0.1
+    listen_interval = 0.02
     last_counter_val = [-1, -1]
     while True:
-        last_counter_val = check_syn_and_ack_number(listen_interval, last_counter_val, auto_off=False)
+        last_counter_val = check_syn_and_ack_number(listen_interval, last_counter_val, auto_off=True)
         # it takes about 2.5 sec to check 10 entries......
         # update_black_list(10)
         # update_white_list(10)

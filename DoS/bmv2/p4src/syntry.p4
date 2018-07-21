@@ -31,8 +31,8 @@
 
 #define CONFIRMED_CONNECTION_MARK (0x7e)/*last 7 bits*/
 
-// #define NO_PROXY_TABLE_SIZE 8192
-// #define SYN_PROXY_TABLE_SIZE 8192
+#define NO_PROXY_TABLE_SIZE 8192
+#define SYN_PROXY_TABLE_SIZE 65536
 
 
 #include "headers.p4"
@@ -88,7 +88,7 @@ fields {
 	no_proxy_table_entry_val : 2;
 
 	// for check_syn_proxy_table
-	syn_proxy_table_hash_val : 13;
+	syn_proxy_table_hash_val : 16;
 	syn_proxy_table_entry_val : 39;
 
 	// for connection num & packet size detector
@@ -123,14 +123,14 @@ register blacklist_table {
 }
 register no_proxy_table {
 	width : 2;
-	instance_count : 8192;
+	instance_count : NO_PROXY_TABLE_SIZE;
 }
 register syn_proxy_table {
 	/*
 	|32 bits offset|6 bits port(server port)|1 bit is_valid|
 	*/
 	width : 39; // 32 bit offset + 6 bit port + 1 bit is_valid
-	instance_count : 8192;
+	instance_count : SYN_PROXY_TABLE_SIZE;
 }
 register hh_size_hashtable0
 {
@@ -257,7 +257,7 @@ table mark_in_blacklist_table {
 
 
 action read_no_proxy_table_entry_value() {
-	modify_field_with_hash_based_offset(meta.no_proxy_table_hash_val, 0, tcp_five_tuple_hash, 8192);
+	modify_field_with_hash_based_offset(meta.no_proxy_table_hash_val, 0, tcp_five_tuple_hash, NO_PROXY_TABLE_SIZE);
 	register_read(meta.no_proxy_table_entry_val, no_proxy_table, meta.no_proxy_table_hash_val);
 }
 table check_no_proxy_table {
@@ -299,7 +299,7 @@ table add_delta_to_ack_table {
 
 
 action read_syn_proxy_table_entry_value() {		
-	modify_field_with_hash_based_offset(meta.syn_proxy_table_hash_val, 0, tcp_five_tuple_hash, 8192);
+	modify_field_with_hash_based_offset(meta.syn_proxy_table_hash_val, 0, tcp_five_tuple_hash, SYN_PROXY_TABLE_SIZE);
 	register_read(meta.syn_proxy_table_entry_val, syn_proxy_table, meta.syn_proxy_table_hash_val);
 }
 table check_syn_proxy_table {
@@ -399,13 +399,17 @@ action open_window() {
 	// set seq_no_offset
 	// TODO: by default, we reckon tcp.seq_no > cookie_val
 	subtract(meta.seq_no_offset, tcp.seq_no, meta.seq_no_offset);
-	modify_field(tcp.seq_no, (meta.syn_proxy_table_entry_val & 0x7fffffff80) >> 7);
+	modify_field(tcp.seq_no, ((meta.syn_proxy_table_entry_val & 0x7fffffff80) >> 7) + 1);
 	// write offset, port, is_Valid into syn_proxy_table
 	register_write(syn_proxy_table, meta.syn_proxy_table_hash_val, (meta.seq_no_offset << 7) | (standard_metadata.ingress_port << 1) | 0x1);
 	/*************evaluation purposes*************/
 	register_read(meta.proxy_table_valid_entry_counter_tmp_val, proxy_table_valid_entry_counter, 0);
 	add_to_field(meta.proxy_table_valid_entry_counter_tmp_val, 1);
 	register_write(proxy_table_valid_entry_counter, 0, meta.proxy_table_valid_entry_counter_tmp_val);
+
+	modify_field(tcp.flags, TCP_FLAG_ACK);
+
+	// modify_field(ipv4.identification, standard_metadata.ingress_port);
 	/*********************************************/
 }
 table open_window_table {
@@ -450,6 +454,7 @@ action reply_sa() {
 	// set window to be 0.
 	// stop client from transferring data
 	modify_field(tcp.window, 0);
+	// modify_field(ipv4.identification, standard_metadata.ingress_port);
 	// count: syn packet
 	// count(syn_counter, 0);
 }
@@ -474,6 +479,8 @@ action confirm_connection() {
 	modify_field(tcp.flags, TCP_FLAG_SYN);
 	// set ack# 0 (optional)
 	modify_field(tcp.ack_no, 0);
+	
+
 	// count: valid ack
 	count(valid_ack_counter, 0);
 }
@@ -669,12 +676,12 @@ control syn_proxy {
 
 			// from server to client
 			// seq# - delta
-			// if(tcp.flags & (TCP_FLAG_FIN | TCP_FLAG_ACK) == (TCP_FLAG_FIN | TCP_FLAG_ACK)){
-			// 	// it's a finishing packet from server
-			// 	apply(empty_conn_in_proxy_table_table);
-			// }else{
+			if(tcp.flags & (TCP_FLAG_FIN | TCP_FLAG_ACK) == (TCP_FLAG_FIN | TCP_FLAG_ACK)){
+				// it's a finishing packet from server
+				apply(empty_conn_in_proxy_table_table);
+			}else{
 				apply(sub_delta_to_seq_table);
-			// }
+			}
 		}else {
 			// from client to server
 			// ack# + delta

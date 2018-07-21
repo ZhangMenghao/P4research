@@ -14,7 +14,7 @@ field_list_calculation tcp_five_tuple_hash {
 		tcp_five_tuple_list;
 	}
 	algorithm : csum16;
-	output_width : 13;
+	output_width : 16;
 }
 
 field_list src_ip_list {
