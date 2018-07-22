@@ -40,9 +40,9 @@ proxy_status, entry_counter = extract_proxy_entry_number('output.txt')
 proxy_entry_length = len(entry_counter)
 
 
-xmajorLocator   = MultipleLocator(1)
-xmajorFormatter = FormatStrFormatter('%1.0f')
-xminorLocator   = MultipleLocator(0.5)
+xmajorLocator   = MultipleLocator(2)
+xmajorFormatter = FormatStrFormatter('%1.1f')
+xminorLocator   = MultipleLocator(1)
 
 ymajorLocator   = MultipleLocator(10)
 ymajorFormatter = FormatStrFormatter('%1.0f')
@@ -65,7 +65,7 @@ ax.yaxis.grid(True, which='major', ls='dotted')
 
 # plt.ylim(-5, 55)
 # plt.xlim(1, 7)
-plt.plot(range(0, proxy_entry_length), entry_counter, '-', label="Valid Entry Number of Proxy Table")
+plt.plot(np.linspace(0, proxy_entry_length * 0.2, num=proxy_entry_length), entry_counter, '-', label="Valid Entry Number of Proxy Table")
 
 # legend = plt.legend(loc='upper left', shadow=False, fontsize=20)
 

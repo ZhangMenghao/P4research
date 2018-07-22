@@ -271,7 +271,7 @@ table check_no_proxy_table {
 
 
 action sub_delta_to_seq() {
-	modify_field(meta.to_drop, FALSE);	
+	modify_field(meta.to_drop, FALSE);
 	subtract_from_field(tcp.seq_no, (meta.syn_proxy_table_entry_val >> 7) & 0xffffffff);
 }
 table sub_delta_to_seq_table {

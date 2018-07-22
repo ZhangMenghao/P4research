@@ -34,6 +34,25 @@ def extract_server_pps(filename):
     f.close()
     return timeline, tcp_pkts, attack_pkts
 
+def extract_proxy_entry_number(filename):
+    f = open('data/' + filename, 'r')
+    status = []
+    counter = []
+    for line in f.readlines():
+        lines = line.split(' ')
+        #print lines
+        if lines[0] == 'proxy_status:':
+            if(int(lines[1]) == -1):
+                status.append(0)
+            else:
+                status.append(int(lines[1]))
+        elif lines[0] == 'proxy_table_entry_counter:':
+            counter.append(int(lines[1]))
+    f.close()
+    return status, counter
+
+proxy_status, entry_counter = extract_proxy_entry_number('output.txt')
+
 resize_metric = 100
 
 client_timeline, client_tcp, client_attack = extract_server_pps('client_1ms.csv')
@@ -89,8 +108,8 @@ ymajorLocator   = MultipleLocator(1000)
 ymajorFormatter = FormatStrFormatter('%4d')
 yminorLocator   = MultipleLocator(500)
 
-plt.figure()
-ax = plt.subplot(211)
+plt.figure(figsize=(8, 12))
+ax = plt.subplot(311)
 
 ax.xaxis.set_major_locator(xmajorLocator)
 ax.xaxis.set_major_formatter(xmajorFormatter)
@@ -104,7 +123,7 @@ ax.yaxis.set_minor_locator(yminorLocator)
 ax.xaxis.grid(True, which='major', ls='dotted')
 ax.yaxis.grid(True, which='major', ls='dotted')
 
-plt.ylim(0, 6000)
+plt.ylim(0, 5000)
 plt.xlim(0, 35)
 plt.plot(client_timeline, client_tcp, '-', label="TCP Packets")
 plt.plot(client_timeline, client_attack, '-', label="Attack SYN Packets")
@@ -119,7 +138,7 @@ legend = plt.legend(loc='upper left', shadow=False)
 plt.xlabel('Time(s)')
 plt.ylabel('Speed(pps)')
 
-bx = plt.subplot(212)
+bx = plt.subplot(312)
 
 bx.xaxis.set_major_locator(xmajorLocator)
 bx.xaxis.set_major_formatter(xmajorFormatter)
@@ -133,7 +152,7 @@ bx.yaxis.set_minor_locator(yminorLocator)
 bx.xaxis.grid(True, which='major', ls='dotted')
 bx.yaxis.grid(True, which='major', ls='dotted')
 
-plt.ylim(0, 6000)
+plt.ylim(0, 5000)
 plt.xlim(0, 35)
 plt.plot(server_timeline, server_tcp, '-', label="TCP Packets")
 plt.plot(server_timeline, server_attack, '-', label="Attack SYN Packets")
@@ -148,5 +167,38 @@ legend = plt.legend(loc='upper left', shadow=False)
 plt.xlabel('Time(s)')
 plt.ylabel('Speed(pps)')
 
-plt.savefig('pps.pdf')
+
+ymajorLocatorEntry   = MultipleLocator(10)
+ymajorFormatterEntry = FormatStrFormatter('%2d')
+yminorLocatorEntry   = MultipleLocator(5)
+
+cx = plt.subplot(313)
+
+cx.xaxis.set_major_locator(xmajorLocator)
+cx.xaxis.set_major_formatter(xmajorFormatter)
+
+cx.yaxis.set_major_locator(ymajorLocatorEntry)
+cx.yaxis.set_major_formatter(ymajorFormatterEntry)
+
+cx.xaxis.set_minor_locator(xminorLocator)
+cx.yaxis.set_minor_locator(yminorLocatorEntry)
+
+cx.xaxis.grid(True, which='major', ls='dotted')
+cx.yaxis.grid(True, which='major', ls='dotted')
+
+plt.ylim(0, 60)
+plt.xlim(0, 35)
+plt.plot(np.linspace(0, max(client_timeline), num=len(entry_counter)), entry_counter, '-', label="Valid Entry Number of Proxy Table")
+
+# legend = plt.legend(loc='upper left', shadow=False, fontsize=20)
+
+# for label in cx.xaxis.get_ticklabels():
+#     label.set_fontsize(20)
+# for label in cx.yaxis.get_ticklabels():
+#     label.set_fontsize(20)
+
+plt.xlabel('Time(s)')
+plt.ylabel('Num. of Valid Entries in Proxy Table')
+
+plt.savefig('figure.pdf')
 plt.show()

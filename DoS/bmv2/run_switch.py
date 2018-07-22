@@ -96,7 +96,7 @@ def turn_off_proxy():
     print 'Turning off proxy...'
     cli_table_set_default(proxy_status_table_name, proxy_off_action_name)
     proxy_status = 0
-    
+
 def check_syn_and_ack_number(listen_interval, last_counter_val, syn_packets_speed_threshold=1500, auto_on=True, auto_off=True):
     print 'last_counter_val:', last_counter_val
     # meter_result = cli_read_meter()
@@ -159,7 +159,7 @@ def main():
         check_proxy_table_entry_num()
         print '\n'
         time.sleep(listen_interval)
-    
+
 
 if __name__ == '__main__':
     main()
