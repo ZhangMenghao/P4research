@@ -8,6 +8,9 @@
 *~
 #png
 *.png
+*.pcapng
 *.json
+
+*.psd
 
 .vscode/
