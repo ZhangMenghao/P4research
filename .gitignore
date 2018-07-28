@@ -3,6 +3,7 @@
 *.swo
 #for pacp
 *.pcap
+*.pyc
 #for dot
 *.dot
 *~
