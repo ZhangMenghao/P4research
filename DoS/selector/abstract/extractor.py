@@ -12,14 +12,19 @@ mpl.rcParams['axes.color_cycle'] = colors
 
 
 def extract(filename):
-    switches = [[], [], []]
+    print 'extracting ' + filename
+    switches = [[], [], [], []]
     f = open(filename, 'r')
     for lines in f.readlines():
         # split into 3 parts
         line = lines.split(',')
-        switches[0].append(int(line[0]))
-        switches[1].append(int(line[1]))
-        switches[2].append(int(line[2]))
+        for i in (0, 1, 2):
+            switches[i].append(int(line[i]))
+        if line[3] == '\n':
+            switches[3].append(0)
+        else:
+            print line
+            switches[3].append(int(line[3]))
     return switches
 
 def lighten(color):
@@ -58,22 +63,18 @@ def draw(filename=['./output.txt', './output_original.txt']):
     ax.xaxis.grid(True, which='minor', ls='dotted')
     ax.yaxis.grid(True, which='minor', ls='dotted')
 
-    plt.xlim(0, 160)
-    plt.ylim(0, 20000)
+    # plt.xlim(0, 160)
+    # plt.ylim(0, 20000)
 
     timeline = range(len(switches[0]))
 
-    plt.plot(timeline, original_switches[0], '--', label="s1-without redistribution",
-        color=lighten(colors[0]))
-    plt.plot(timeline, original_switches[1], '--', label="s2-without redistribution",
-        color=lighten(colors[1]))
-    plt.plot(timeline, original_switches[2], '--', label="s3-without redistribution",
-        color=lighten(colors[2]))
-    plt.plot(timeline, switches[0], '-', label="s1-with redistribution")
-    plt.plot(timeline, switches[1], '-', label="s2-with redistribution")
-    plt.plot(timeline, switches[2], '-', label="s3-with redistribution")
+    for i in range(4):
+        plt.plot(timeline, original_switches[i], '--', label=("s%d-without redistribution" % i),
+            color=lighten(colors[i]))
+    for i in range(4):
+        plt.plot(timeline, switches[i], '-', label=("s%d-with redistribution" % i))
 
-    plt.legend(loc='lower right', shadow=False, fontsize='xx-large')
+    # plt.legend(loc='lower right', shadow=False, fontsize='xx-large')
 
     for label in ax.xaxis.get_ticklabels():
         label.set_fontsize('xx-large')

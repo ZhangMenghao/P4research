@@ -55,7 +55,18 @@ def send_packets(switch_pool, packet_count, busy_switch=-1, another_switch_pool=
             if another_switch_pool is not None:
                 another_switch_pool[busy_switch].receive(addr)
 
+def min_but(list, indexes):
+    minimum = max(list)
+    for i in range(len(list)):
+        if i not in indexes and list[i] < minimum:
+            minimum = list[i]
+    return minimum
+
 def read_and_redistribute_data(switch_pool, filename, redistribute=True, alpha=1.5):
+    down_switches = []
+    for switch in switch_pool:
+        if switch.up is False:
+            down_switches.append(switch.index)
     switch_count = len(switch_pool)
     flow_count_totals = []
     flow_counts = []
@@ -66,40 +77,64 @@ def read_and_redistribute_data(switch_pool, filename, redistribute=True, alpha=1
         print 'Switch %d has a total flow count of %d' % (switch.index, flow_count_total)
     write_to_file(flow_count_totals, filename)
     if redistribute:
-        # loop until the distribution is relatively balanced
         migration_list = []
-        while True:
-            # find the busiest and the lowest-burdened switch
-            min_switch = flow_count_totals.index(min(flow_count_totals))
-            max_switch = flow_count_totals.index(max(flow_count_totals))
-            if len(flow_counts[max_switch]) == 0:
-                break
-            if max_switch == min_switch:
-                break
-            if flow_count_totals[max_switch] - flow_count_totals[min_switch]    \
-                <= flow_count_totals[min_switch] * 0.1:
-                break
-            # find the smallest bucket of the max_switch
-            min_bucket = min(
-                flow_counts[max_switch].iteritems(),
-                key=operator.itemgetter(1)
-            )
-            # if the difference between busiest switch and min switch
-            # is bigger than the smallest bucket of the busiest switch
-            # migrate this bucket to the small one
-            if flow_count_totals[max_switch] - \
-                flow_count_totals[min_switch] >= alpha * min_bucket[1]:
-                # add a migration job
-                migration_list.append(Migration(max_switch, min_switch, min_bucket[0]))
-                # change statistic values
-                flow_count_totals[max_switch] = \
-                    flow_count_totals[max_switch] - min_bucket[1]
-                flow_count_totals[min_switch] = \
-                    flow_count_totals[min_switch] + min_bucket[1]
-                flow_counts[min_switch][min_bucket[0]] = min_bucket[1]
-                flow_counts[max_switch].pop(min_bucket[0])
-            else:
-                break
+        # look for switches that are shutting down
+        # 1 at most
+        for index in down_switches:
+            if switch_pool[index].cleared is False:
+                print 'switch %d not cleared!' % index
+                # migrate all buckets it has to others
+                while len(flow_counts[index]) != 0:
+                    max_bucket = max(
+                        flow_counts[index].iteritems(),
+                        key=operator.itemgetter(1)
+                    )
+                    min_switch = flow_count_totals.index(min_but(flow_count_totals, down_switches))
+                    # add a migration job
+                    migration_list.append(Migration(index, min_switch, max_bucket[0]))
+                    # change statistic values
+                    flow_count_totals[min_switch] = \
+                        flow_count_totals[min_switch] + max_bucket[1]
+                    flow_counts[min_switch][max_bucket[0]] = max_bucket[1]
+                    flow_counts[index].pop(max_bucket[0])
+                switch_pool[index].clear()
+
+        if len(migration_list) == 0:
+            # if there is no down switches that have not been cleared
+            # loop until the distribution is relatively balanced
+            while True:
+                # find the busiest and the lowest-burdened switch
+                min_switch = flow_count_totals.index(min_but(flow_count_totals, down_switches))
+                max_switch = flow_count_totals.index(max(flow_count_totals))
+                if len(flow_counts[max_switch]) == 0:
+                    break
+                if max_switch == min_switch:
+                    break
+                if flow_count_totals[max_switch] - flow_count_totals[min_switch]    \
+                    <= flow_count_totals[min_switch] * 0.1:
+                    break
+                # find the smallest bucket of the max_switch
+                min_bucket = min(
+                    flow_counts[max_switch].iteritems(),
+                    key=operator.itemgetter(1)
+                )
+                # if the difference between busiest switch and min switch
+                # is bigger than the smallest bucket of the busiest switch
+                # migrate this bucket to the small one
+                if flow_count_totals[max_switch] - \
+                    flow_count_totals[min_switch] >= alpha * min_bucket[1]:
+                    # add a migration job
+                    migration_list.append(Migration(max_switch, min_switch, min_bucket[0]))
+                    # change statistic values
+                    flow_count_totals[max_switch] = \
+                        flow_count_totals[max_switch] - min_bucket[1]
+                    flow_count_totals[min_switch] = \
+                        flow_count_totals[min_switch] + min_bucket[1]
+                    flow_counts[min_switch][min_bucket[0]] = min_bucket[1]
+                    flow_counts[max_switch].pop(min_bucket[0])
+                else:
+                    break
+
         # finish all migrations
         for migration in migration_list:
             migration.execute(switch_pool)
@@ -145,11 +180,13 @@ def test():
     term_count = 0
     round_count = 0
     busy_switch = -1
-    packet_rate_base = 18000
     packet_rate_seiling = 55000
+    packet_rate_base = packet_rate_seiling / 3 * 2
     packet_rate = packet_rate_seiling - packet_rate_seiling / 10
-    term_count_static = 30 + random.randint(-10, 10)
+    term_count_static_base = 30
+    term_count_static = term_count_static_base + random.randint(-10, 10)
     while True:
+        print 'round_count: %d, term_count: %d' % (round_count, term_count)
         send_packets(switch_pool, packet_rate, busy_switch=busy_switch, another_switch_pool=origin_switch_pool)
         read_and_redistribute_data(switch_pool, migrated_file)
         read_and_redistribute_data(origin_switch_pool, original_file, redistribute=False)
@@ -162,10 +199,18 @@ def test():
             term_count = 0
             round_count = round_count + 1
             busy_switch = (busy_switch + 1) % switch_count
-            term_count_static = 30 + random.randint(-10, 10)
-        if round_count == 4:
+            term_count_static = term_count_static_base + random.randint(-10, 10)
+        if round_count == 4 and term_count == 0:
+            switch_count = switch_count + 1
+            switch_pool.append(Switch(3, bucket_size))
+            origin_switch_pool.append(Switch(3, bucket_size))
             busy_switch = -1
-        elif round_count == 5:
+        elif round_count == 8 and term_count == 0:
+            switch_count = switch_count - 1
+            switch_pool[2].shutdown()
+            origin_switch_pool[2].shutdown()
+            busy_switch = -1
+        elif round_count == 12:
             break
 
 

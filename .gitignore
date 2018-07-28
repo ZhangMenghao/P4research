@@ -15,3 +15,5 @@
 *.psd
 
 .vscode/
+DoS/selector/abstract/*.txt
+DoS/selector/abstract/*.pdf
